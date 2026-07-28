@@ -518,23 +518,6 @@ function SortTh({
   );
 }
 
-function StatOld({ label, value, big }: { label: string; value: string | number; big?: boolean }) {
-  return (
-    <div className="flex flex-col leading-tight">
-      <span
-        className={
-          big
-            ? "text-2xl font-bold text-primary tabular-nums"
-            : "text-lg font-semibold tabular-nums"
-        }
-      >
-        {value}
-      </span>
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
   const color =
     status === "Ongoing"
