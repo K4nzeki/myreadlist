@@ -291,11 +291,11 @@ function Tracker() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
                 <tr>
-                  <th className="text-left font-medium px-4 py-2">Title</th>
-                  <th className="text-left font-medium px-2 py-2 w-28">Type</th>
-                  <th className="text-right font-medium px-2 py-2 w-24">Ch.</th>
-                  <th className="text-left font-medium px-2 py-2 w-32">Status</th>
-                  <th className="text-right font-medium px-2 py-2 w-20">Reread</th>
+                  <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
+                  <SortTh label="Type" k="type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-28" />
+                  <SortTh label="Ch." k="chapter" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-24" align="right" />
+                  <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-32" />
+                  <SortTh label="Reread" k="reread" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-20" align="right" />
                   <th className="w-10" />
                 </tr>
               </thead>
