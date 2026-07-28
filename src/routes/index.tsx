@@ -483,6 +483,58 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
   );
 }
 
+function SortTh({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  className,
+  align,
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey | null;
+  sortDir: SortDir;
+  onClick: (k: SortKey) => void;
+  className?: string;
+  align?: "right";
+}) {
+  const active = sortKey === k;
+  const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
+  return (
+    <th className={`font-medium ${className ?? ""}`}>
+      <button
+        type="button"
+        onClick={() => onClick(k)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-foreground transition ${
+          align === "right" ? "justify-end w-full" : ""
+        } ${active ? "text-foreground" : ""}`}
+      >
+        <span>{label}</span>
+        <span className="text-[9px] w-2">{arrow}</span>
+      </button>
+    </th>
+  );
+}
+
+function StatOld({ label, value, big }: { label: string; value: string | number; big?: boolean }) {
+  return (
+    <div className="flex flex-col leading-tight">
+      <span
+        className={
+          big
+            ? "text-2xl font-bold text-primary tabular-nums"
+            : "text-lg font-semibold tabular-nums"
+        }
+      >
+        {value}
+      </span>
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
   const color =
     status === "Ongoing"
