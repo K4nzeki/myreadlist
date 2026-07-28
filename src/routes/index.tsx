@@ -21,6 +21,9 @@ const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
 const STORAGE_KEY = "panels.entries.v1";
 
+type SortKey = "title" | "type" | "chapter" | "status" | "reread";
+type SortDir = "asc" | "desc";
+
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -92,6 +95,8 @@ function Tracker() {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -123,14 +128,36 @@ function Tracker() {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        e.type.toLowerCase().includes(q) ||
-        e.status.toLowerCase().includes(q),
-    );
-  }, [entries, filter]);
+    const list = !q
+      ? entries
+      : entries.filter(
+          (e) =>
+            e.title.toLowerCase().includes(q) ||
+            e.type.toLowerCase().includes(q) ||
+            e.status.toLowerCase().includes(q),
+        );
+    if (!sortKey) return list;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
+    });
+  }, [entries, filter, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else {
+        setSortKey(null);
+        setSortDir("asc");
+      }
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
 
   const update = (id: string, patch: Partial<Entry>) =>
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
@@ -264,11 +291,11 @@ function Tracker() {
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
                 <tr>
-                  <th className="text-left font-medium px-4 py-2">Title</th>
-                  <th className="text-left font-medium px-2 py-2 w-28">Type</th>
-                  <th className="text-right font-medium px-2 py-2 w-24">Ch.</th>
-                  <th className="text-left font-medium px-2 py-2 w-32">Status</th>
-                  <th className="text-right font-medium px-2 py-2 w-20">Reread</th>
+                  <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
+                  <SortTh label="Type" k="type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-28" />
+                  <SortTh label="Ch." k="chapter" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-24" align="right" />
+                  <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-32" />
+                  <SortTh label="Reread" k="reread" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-20" align="right" />
                   <th className="w-10" />
                 </tr>
               </thead>
@@ -453,6 +480,41 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
       </span>
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
     </div>
+  );
+}
+
+function SortTh({
+  label,
+  k,
+  sortKey,
+  sortDir,
+  onClick,
+  className,
+  align,
+}: {
+  label: string;
+  k: SortKey;
+  sortKey: SortKey | null;
+  sortDir: SortDir;
+  onClick: (k: SortKey) => void;
+  className?: string;
+  align?: "right";
+}) {
+  const active = sortKey === k;
+  const arrow = active ? (sortDir === "asc" ? "▲" : "▼") : "";
+  return (
+    <th className={`font-medium ${className ?? ""}`}>
+      <button
+        type="button"
+        onClick={() => onClick(k)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-foreground transition ${
+          align === "right" ? "justify-end w-full" : ""
+        } ${active ? "text-foreground" : ""}`}
+      >
+        <span>{label}</span>
+        <span className="text-[9px] w-2">{arrow}</span>
+      </button>
+    </th>
   );
 }
 
