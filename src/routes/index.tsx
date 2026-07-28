@@ -95,6 +95,8 @@ function Tracker() {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -126,14 +128,36 @@ function Tracker() {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(
-      (e) =>
-        e.title.toLowerCase().includes(q) ||
-        e.type.toLowerCase().includes(q) ||
-        e.status.toLowerCase().includes(q),
-    );
-  }, [entries, filter]);
+    const list = !q
+      ? entries
+      : entries.filter(
+          (e) =>
+            e.title.toLowerCase().includes(q) ||
+            e.type.toLowerCase().includes(q) ||
+            e.status.toLowerCase().includes(q),
+        );
+    if (!sortKey) return list;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
+    });
+  }, [entries, filter, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      if (sortDir === "asc") setSortDir("desc");
+      else {
+        setSortKey(null);
+        setSortDir("asc");
+      }
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
 
   const update = (id: string, patch: Partial<Entry>) =>
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
