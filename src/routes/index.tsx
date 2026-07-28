@@ -21,6 +21,9 @@ const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
 const STORAGE_KEY = "panels.entries.v1";
 
+type SortKey = "title" | "type" | "chapter" | "status" | "reread";
+type SortDir = "asc" | "desc";
+
 const uid = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
