@@ -136,24 +136,44 @@ function Tracker() {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   const remove = (id: string) => setEntries((prev) => prev.filter((e) => e.id !== id));
   const addBlank = () =>
-    setEntries((prev) => [
-      { id: uid(), title: "New title", type: "Manga", chapter: 0, status: "Ongoing", reread: 0 },
-      ...prev,
-    ]);
+    setEntries((prev) => {
+      const taken = new Set(prev.map((e) => e.title.trim().toLowerCase()));
+      let title = "New title";
+      let n = 2;
+      while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
+      return [
+        { id: uid(), title, type: "Manga", chapter: 0, status: "Ongoing", reread: 0 },
+        ...prev,
+      ];
+    });
 
   const runImport = () => {
     const lines = importText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const added: Entry[] = [];
     const errors: string[] = [];
+    const existing = new Set(entries.map((e) => e.title.trim().toLowerCase()));
     lines.forEach((line, i) => {
       const piped = line.includes("|") ? parsePipeLine(line) : null;
       if (piped) {
-        added.push(piped);
+        const key = piped.title.trim().toLowerCase();
+        if (existing.has(key)) {
+          errors.push(`Line ${i + 1}: duplicate title "${piped.title}"`);
+        } else {
+          existing.add(key);
+          added.push(piped);
+        }
         return;
       }
       const { entry, error } = parseSpaceLine(line);
-      if (entry) added.push(entry);
-      else errors.push(`Line ${i + 1}: ${error}`);
+      if (entry) {
+        const key = entry.title.trim().toLowerCase();
+        if (existing.has(key)) {
+          errors.push(`Line ${i + 1}: duplicate title "${entry.title}"`);
+        } else {
+          existing.add(key);
+          added.push(entry);
+        }
+      } else errors.push(`Line ${i + 1}: ${error}`);
     });
     if (added.length) setEntries((prev) => [...added, ...prev]);
     setImportMsg({ ok: added.length, errors });
