@@ -109,6 +109,20 @@ function Tracker() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   }, [entries, hydrated]);
 
+  // Auto-remove duplicate titles (case-insensitive), keeping the first occurrence
+  useEffect(() => {
+    if (!hydrated) return;
+    const seen = new Set<string>();
+    const deduped: Entry[] = [];
+    for (const e of entries) {
+      const key = e.title.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(e);
+    }
+    if (deduped.length !== entries.length) setEntries(deduped);
+  }, [entries, hydrated]);
+
   const stats = useMemo(() => {
     const s = {
       chapters: 0,
@@ -157,6 +171,18 @@ function Tracker() {
       setSortKey(key);
       setSortDir("asc");
     }
+  };
+
+  const sortValue = sortKey ? `${sortKey}:${sortDir}` : "";
+  const applySortValue = (v: string) => {
+    if (!v) {
+      setSortKey(null);
+      setSortDir("asc");
+      return;
+    }
+    const [k, d] = v.split(":") as [SortKey, SortDir];
+    setSortKey(k);
+    setSortDir(d);
   };
 
   const update = (id: string, patch: Partial<Entry>) =>
@@ -279,6 +305,18 @@ function Tracker() {
               placeholder="Filter by title, type, status…"
               className="flex-1 h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
             />
+            <select
+              value={sortValue}
+              onChange={(e) => applySortValue(e.target.value)}
+              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              title="Sort"
+            >
+              <option value="">Sort: Default</option>
+              <option value="title:asc">Title A → Z</option>
+              <option value="title:desc">Title Z → A</option>
+              <option value="chapter:desc">Chapter High → Low</option>
+              <option value="chapter:asc">Chapter Low → High</option>
+            </select>
             <button
               onClick={addBlank}
               className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
