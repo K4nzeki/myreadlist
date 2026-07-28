@@ -109,6 +109,20 @@ function Tracker() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   }, [entries, hydrated]);
 
+  // Auto-remove duplicate titles (case-insensitive), keeping the first occurrence
+  useEffect(() => {
+    if (!hydrated) return;
+    const seen = new Set<string>();
+    const deduped: Entry[] = [];
+    for (const e of entries) {
+      const key = e.title.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(e);
+    }
+    if (deduped.length !== entries.length) setEntries(deduped);
+  }, [entries, hydrated]);
+
   const stats = useMemo(() => {
     const s = {
       chapters: 0,
@@ -157,6 +171,18 @@ function Tracker() {
       setSortKey(key);
       setSortDir("asc");
     }
+  };
+
+  const sortValue = sortKey ? `${sortKey}:${sortDir}` : "";
+  const applySortValue = (v: string) => {
+    if (!v) {
+      setSortKey(null);
+      setSortDir("asc");
+      return;
+    }
+    const [k, d] = v.split(":") as [SortKey, SortDir];
+    setSortKey(k);
+    setSortDir(d);
   };
 
   const update = (id: string, patch: Partial<Entry>) =>
