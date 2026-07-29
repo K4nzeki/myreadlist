@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Session } from "@supabase/supabase-js";
 
 export const Route = createFileRoute("/")({
   component: Tracker,
@@ -19,15 +21,9 @@ type Entry = {
 
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
-const STORAGE_KEY = "panels.entries.v1";
 
 type SortKey = "title" | "type" | "chapter" | "status" | "reread";
 type SortDir = "asc" | "desc";
-
-const uid = () =>
-  typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
 
 function serialize(entries: Entry[]) {
   return entries
@@ -44,7 +40,9 @@ function normalizeStatus(raw: string): EntryStatus | null {
   return found ?? null;
 }
 
-function parsePipeLine(line: string): Entry | null {
+type Parsed = Omit<Entry, "id">;
+
+function parsePipeLine(line: string): Parsed | null {
   const parts = line.split("|").map((p) => p.trim());
   if (parts.length < 5) return null;
   const [title, chap, status, type, reread] = parts;
@@ -53,10 +51,10 @@ function parsePipeLine(line: string): Entry | null {
   const c = Number(chap);
   const r = Number(reread);
   if (!title || !t || !s || Number.isNaN(c) || Number.isNaN(r)) return null;
-  return { id: uid(), title, type: t, chapter: c, status: s, reread: r };
+  return { title, type: t, chapter: c, status: s, reread: r };
 }
 
-function parseSpaceLine(line: string): { entry?: Entry; error?: string } {
+function parseSpaceLine(line: string): { entry?: Parsed; error?: string } {
   const tokens = line.trim().split(/\s+/);
   if (tokens.length < 5) return { error: "needs Title + Chapter Status Type Reread" };
   const reread = tokens.pop()!;
@@ -73,25 +71,120 @@ function parseSpaceLine(line: string): { entry?: Entry; error?: string } {
   if (!s) return { error: `unknown status "${status}"` };
   if (Number.isNaN(c)) return { error: `chapter "${chapter}" not a number` };
   if (Number.isNaN(r)) return { error: `reread "${reread}" not a number` };
-  return { entry: { id: uid(), title, type: t, chapter: c, status: s, reread: r } };
-}
-
-function loadInitial(): Entry[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as Entry[];
-  } catch {
-    return [];
-  }
+  return { entry: { title, type: t, chapter: c, status: s, reread: r } };
 }
 
 function Tracker() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  if (!authReady) {
+    return (
+      <div className="h-screen w-screen grid place-items-center bg-background text-muted-foreground text-sm">
+        Loading…
+      </div>
+    );
+  }
+  if (!session) return <AuthPanel />;
+  return <TrackerApp userId={session.user.id} email={session.user.email ?? ""} />;
+}
+
+function AuthPanel() {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      if (mode === "signup") {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (error) throw error;
+        setMsg("Check your email to confirm, then sign in.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="h-screen w-screen grid place-items-center bg-background text-foreground p-4">
+      <form
+        onSubmit={submit}
+        className="w-full max-w-sm flex flex-col gap-3 border border-border rounded-lg p-6 bg-card"
+      >
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-2xl font-bold text-primary">Panels</h1>
+          <span className="text-xs text-muted-foreground">reading tracker</span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {mode === "signin" ? "Sign in to sync your list." : "Create an account to sync your list."}
+        </p>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        <input
+          type="password"
+          required
+          minLength={6}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Password (min 6)"
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        <button
+          type="submit"
+          disabled={busy}
+          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === "signin" ? "signup" : "signin");
+            setMsg(null);
+          }}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          {mode === "signin" ? "No account? Sign up" : "Have an account? Sign in"}
+        </button>
+        {msg && <div className="text-xs text-accent">{msg}</div>}
+      </form>
+    </div>
+  );
+}
+
+function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
@@ -100,28 +193,15 @@ function Tracker() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setEntries(loadInitial());
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  }, [entries, hydrated]);
-
-  // Auto-remove duplicate titles (case-insensitive), keeping the first occurrence
-  useEffect(() => {
-    if (!hydrated) return;
-    const seen = new Set<string>();
-    const deduped: Entry[] = [];
-    for (const e of entries) {
-      const key = e.title.trim().toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      deduped.push(e);
-    }
-    if (deduped.length !== entries.length) setEntries(deduped);
-  }, [entries, hydrated]);
+    (async () => {
+      const { data, error } = await supabase
+        .from("entries")
+        .select("id, title, type, chapter, status, reread")
+        .order("created_at", { ascending: false });
+      if (!error && data) setEntries(data as Entry[]);
+      setLoading(false);
+    })();
+  }, [userId]);
 
   const stats = useMemo(() => {
     const s = {
@@ -185,52 +265,62 @@ function Tracker() {
     setSortDir(d);
   };
 
-  const update = (id: string, patch: Partial<Entry>) =>
+  const update = (id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  const remove = (id: string) => setEntries((prev) => prev.filter((e) => e.id !== id));
-  const addBlank = () =>
-    setEntries((prev) => {
-      const taken = new Set(prev.map((e) => e.title.trim().toLowerCase()));
-      let title = "New title";
-      let n = 2;
-      while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
-      return [
-        { id: uid(), title, type: "Manga", chapter: 0, status: "Ongoing", reread: 0 },
-        ...prev,
-      ];
-    });
+    void supabase.from("entries").update(patch).eq("id", id);
+  };
+  const remove = async (id: string) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    await supabase.from("entries").delete().eq("id", id);
+  };
+  const addBlank = async () => {
+    const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
+    let title = "New title";
+    let n = 2;
+    while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
+    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Ongoing", reread: 0 };
+    const { data, error } = await supabase
+      .from("entries")
+      .insert(row)
+      .select("id, title, type, chapter, status, reread")
+      .single();
+    if (!error && data) setEntries((prev) => [data as Entry, ...prev]);
+  };
 
-  const runImport = () => {
+  const runImport = async () => {
     const lines = importText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    const added: Entry[] = [];
+    const toInsert: Parsed[] = [];
     const errors: string[] = [];
     const existing = new Set(entries.map((e) => e.title.trim().toLowerCase()));
     lines.forEach((line, i) => {
       const piped = line.includes("|") ? parsePipeLine(line) : null;
-      if (piped) {
-        const key = piped.title.trim().toLowerCase();
+      const parsed = piped ?? parseSpaceLine(line).entry;
+      const err = piped ? null : parseSpaceLine(line).error;
+      if (parsed) {
+        const key = parsed.title.trim().toLowerCase();
         if (existing.has(key)) {
-          errors.push(`Line ${i + 1}: duplicate title "${piped.title}"`);
+          errors.push(`Line ${i + 1}: duplicate title "${parsed.title}"`);
         } else {
           existing.add(key);
-          added.push(piped);
+          toInsert.push(parsed);
         }
-        return;
-      }
-      const { entry, error } = parseSpaceLine(line);
-      if (entry) {
-        const key = entry.title.trim().toLowerCase();
-        if (existing.has(key)) {
-          errors.push(`Line ${i + 1}: duplicate title "${entry.title}"`);
-        } else {
-          existing.add(key);
-          added.push(entry);
-        }
-      } else errors.push(`Line ${i + 1}: ${error}`);
+      } else errors.push(`Line ${i + 1}: ${err ?? "invalid"}`);
     });
-    if (added.length) setEntries((prev) => [...added, ...prev]);
-    setImportMsg({ ok: added.length, errors });
-    if (added.length && !errors.length) setImportText("");
+    let addedCount = 0;
+    if (toInsert.length) {
+      const rows = toInsert.map((p) => ({ ...p, user_id: userId }));
+      const { data, error } = await supabase
+        .from("entries")
+        .insert(rows)
+        .select("id, title, type, chapter, status, reread");
+      if (error) errors.push(error.message);
+      else if (data) {
+        setEntries((prev) => [...(data as Entry[]), ...prev]);
+        addedCount = data.length;
+      }
+    }
+    setImportMsg({ ok: addedCount, errors });
+    if (addedCount && !errors.length) setImportText("");
   };
 
   const saveTxt = () => {
@@ -248,19 +338,39 @@ function Tracker() {
     const file = ev.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const text = String(reader.result ?? "");
-      const loaded: Entry[] = [];
+      const loaded: Parsed[] = [];
+      const existing = new Set(entries.map((e) => e.title.trim().toLowerCase()));
       for (const line of text.split(/\r?\n/)) {
         if (!line.trim()) continue;
         const e = parsePipeLine(line);
-        if (e) loaded.push(e);
+        if (!e) continue;
+        const key = e.title.trim().toLowerCase();
+        if (existing.has(key)) continue;
+        existing.add(key);
+        loaded.push(e);
       }
-      setEntries(loaded);
+      if (loaded.length) {
+        const rows = loaded.map((p) => ({ ...p, user_id: userId }));
+        const { data } = await supabase
+          .from("entries")
+          .insert(rows)
+          .select("id, title, type, chapter, status, reread");
+        if (data) setEntries((prev) => [...(data as Entry[]), ...prev]);
+      }
     };
     reader.readAsText(file);
     ev.target.value = "";
   };
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen grid place-items-center bg-background text-muted-foreground text-sm">
+        Loading your list…
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
@@ -290,6 +400,16 @@ function Tracker() {
             {STATUSES.map((s) => (
               <StatusPill key={s} status={s} count={stats.statuses[s]} />
             ))}
+          </div>
+          <div className="h-8 w-px bg-border" />
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground hidden sm:inline">{email}</span>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </header>
