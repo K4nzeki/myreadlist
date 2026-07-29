@@ -679,17 +679,37 @@ function SortTh({
   );
 }
 
+function statusColorClasses(status: EntryStatus) {
+  return status === "Ongoing"
+    ? "text-ongoing"
+    : status === "Dropped"
+      ? "text-dropped"
+      : status === "Cancelled"
+        ? "text-muted-foreground"
+        : "text-finished";
+}
+
+function statusRowBorder(status: EntryStatus) {
+  return status === "Ongoing"
+    ? "border-l-2 border-l-ongoing"
+    : status === "Dropped"
+      ? "border-l-2 border-l-dropped"
+      : status === "Cancelled"
+        ? "border-l-2 border-l-muted-foreground/50"
+        : "border-l-2 border-l-finished";
+}
+
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
-  const color =
+  const bg =
     status === "Ongoing"
-      ? "bg-ongoing/15 text-ongoing"
+      ? "bg-ongoing/15"
       : status === "Dropped"
-        ? "bg-dropped/15 text-dropped"
+        ? "bg-dropped/15"
         : status === "Cancelled"
-          ? "bg-cancelled/25 text-muted-foreground"
-          : "bg-finished/15 text-finished";
+          ? "bg-cancelled/25"
+          : "bg-finished/15";
   return (
-    <span className={`px-2 py-1 rounded-full font-medium ${color}`}>
+    <span className={`px-2 py-1 rounded-full font-medium ${bg} ${statusColorClasses(status)}`}>
       {count} {status}
     </span>
   );
