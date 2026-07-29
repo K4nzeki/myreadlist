@@ -468,7 +468,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                   </tr>
                 )}
                 {filtered.map((e) => (
-                  <tr key={e.id} className="border-t border-border hover:bg-muted/40 group">
+                  <tr
+                    key={e.id}
+                    className={`border-t border-border hover:bg-muted/40 group ${statusRowBorder(e.status)}`}
+                  >
                     <td className="px-4 py-1.5">
                       <input
                         value={e.title}
