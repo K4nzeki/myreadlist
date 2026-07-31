@@ -216,6 +216,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
