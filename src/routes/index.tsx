@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { Menu, X } from "lucide-react";
+import { Eye, EyeOff, Menu, User, X } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Tracker,
