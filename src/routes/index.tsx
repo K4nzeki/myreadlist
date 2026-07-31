@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { Menu, X } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Tracker,
@@ -190,6 +191,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [filter, setFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [panelOpen, setPanelOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -375,34 +377,43 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
       {/* Header + stats */}
-      <header className="border-b border-border px-6 py-3 flex items-center gap-6 flex-wrap">
-        <div className="flex items-baseline gap-2">
+      <header className="border-b border-border px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-3 sm:gap-6 flex-wrap">
+        <div className="flex items-baseline gap-2 min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">
             <span className="text-primary">Panels</span>
           </h1>
-          <span className="text-xs text-muted-foreground">reading tracker</span>
+          <span className="hidden sm:inline text-xs text-muted-foreground">reading tracker</span>
         </div>
 
-        <div className="flex items-center gap-5 flex-wrap text-sm ml-auto">
+        <button
+          onClick={() => setPanelOpen((v) => !v)}
+          aria-label="Toggle bulk import panel"
+          aria-expanded={panelOpen}
+          className="ml-auto order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border hover:bg-muted"
+        >
+          {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        </button>
+
+        <div className="flex items-center gap-3 sm:gap-5 flex-wrap text-sm w-full lg:w-auto lg:ml-auto order-2 lg:order-none">
           <Stat label="Chapters" value={stats.chapters.toLocaleString()} big />
           <Stat label="Titles" value={stats.total} />
           <Stat label="Rereads" value={stats.rereads} />
-          <div className="h-8 w-px bg-border" />
-          <div className="flex gap-3 text-xs">
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div className="hidden sm:flex gap-3 text-xs">
             {TYPES.map((t) => (
               <span key={t} className="text-muted-foreground">
                 <span className="text-foreground font-semibold">{stats.types[t]}</span> {t}
               </span>
             ))}
           </div>
-          <div className="h-8 w-px bg-border" />
-          <div className="flex gap-2 text-xs">
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div className="flex gap-2 text-xs flex-wrap">
             {STATUSES.map((s) => (
               <StatusPill key={s} status={s} count={stats.statuses[s]} />
             ))}
           </div>
-          <div className="h-8 w-px bg-border" />
-          <div className="flex items-center gap-2 text-xs">
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div className="flex items-center gap-2 text-xs ml-auto lg:ml-0">
             <span className="text-muted-foreground hidden sm:inline">{email}</span>
             <button
               onClick={() => supabase.auth.signOut()}
@@ -415,23 +426,23 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       </header>
 
       {/* Main grid */}
-      <main className="flex-1 grid grid-cols-[1fr_360px] min-h-0">
+      <main className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
-        <section className="flex flex-col min-h-0 border-r border-border">
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
+        <section className="flex flex-col min-h-0 flex-1 border-r border-border">
+          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-border">
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter by title, type, status…"
-              className="flex-1 h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Filter…"
+              className="flex-1 min-w-0 h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <select
               value={sortValue}
               onChange={(e) => applySortValue(e.target.value)}
-              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[9rem]"
               title="Sort"
             >
-              <option value="">Sort: Default</option>
+              <option value="">Sort</option>
               <option value="title:asc">Title A → Z</option>
               <option value="title:desc">Title Z → A</option>
               <option value="chapter:desc">Chapter High → Low</option>
@@ -439,14 +450,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </select>
             <button
               onClick={addBlank}
-              className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+              className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 shrink-0"
             >
-              + Add
+              +<span className="hidden sm:inline"> Add</span>
             </button>
           </div>
 
           <div className="flex-1 overflow-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[620px] text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
                 <tr>
                   <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
@@ -554,13 +565,32 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           </div>
         </section>
 
+        {/* Backdrop (mobile) */}
+        {panelOpen && (
+          <div
+            onClick={() => setPanelOpen(false)}
+            className="lg:hidden fixed inset-0 z-30 bg-background/70"
+          />
+        )}
+
         {/* Side panel */}
-        <aside className="flex flex-col min-h-0 bg-card">
-          <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        <aside
+          className={`${panelOpen ? "flex" : "hidden"} flex-col min-h-0 bg-card fixed inset-y-0 right-0 z-40 w-[88%] max-w-sm border-l border-border shadow-xl lg:static lg:z-auto lg:w-[360px] lg:max-w-none lg:shadow-none`}
+        >
+          <div className="px-4 py-2 border-b border-border flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Bulk import</h2>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-              Title … Ch Status Type Reread
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-[10px] text-muted-foreground uppercase tracking-wide">
+                Title … Ch Status Type Reread
+              </span>
+              <button
+                onClick={() => setPanelOpen(false)}
+                aria-label="Close bulk import panel"
+                className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
             <textarea
