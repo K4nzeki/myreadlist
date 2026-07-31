@@ -710,6 +710,171 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
   );
 }
 
+function ProfileDialog({
+  userId,
+  email,
+  onClose,
+}: {
+  userId: string;
+  email: string;
+  onClose: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [newEmail, setNewEmail] = useState(email);
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!active) return;
+      setUsername(data?.username ?? "");
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    const notes: string[] = [];
+    try {
+      const uname = username.trim();
+      if (uname.length > 40) throw new Error("Username must be 40 characters or fewer.");
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .upsert({ id: userId, username: uname || null }, { onConflict: "id" });
+      if (pErr)
+        throw new Error(
+          pErr.code === "23505" ? "That username is already taken." : pErr.message,
+        );
+      notes.push("Profile saved.");
+
+      const trimmedEmail = newEmail.trim();
+      if (trimmedEmail && trimmedEmail !== email) {
+        const { error } = await supabase.auth.updateUser(
+          { email: trimmedEmail },
+          { emailRedirectTo: window.location.origin },
+        );
+        if (error) throw error;
+        notes.push("Check your new email to confirm the change.");
+      }
+
+      if (password) {
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        setPassword("");
+        notes.push("Password updated.");
+      }
+      setMsg({ text: notes.join(" ") });
+    } catch (err) {
+      setMsg({ text: (err as Error).message, error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+      <form
+        onSubmit={save}
+        className="w-full max-w-sm flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Your profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close profile"
+            className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <label className="text-xs text-muted-foreground">Username</label>
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          disabled={loading}
+          maxLength={40}
+          placeholder={loading ? "Loading…" : "your name"}
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <label className="text-xs text-muted-foreground">Email</label>
+        <input
+          type="email"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <label className="text-xs text-muted-foreground">New password</label>
+        <div className="relative">
+          <input
+            type={showPw ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Leave blank to keep current"
+            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            aria-label={showPw ? "Hide password" : "Show password"}
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
+          >
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          disabled={busy || loading}
+          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+        {msg && (
+          <div className={`text-xs ${msg.error ? "text-destructive" : "text-accent"}`}>
+            {msg.text}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+}
+
+function StatUnused({ label, value, big }: { label: string; value: string | number; big?: boolean }) {
+  return (
+    <div className="flex flex-col leading-tight">
+      <span
+        className={
+          big
+            ? "text-2xl font-bold text-primary tabular-nums"
+            : "text-lg font-semibold tabular-nums"
+        }
+      >
+        {value}
+      </span>
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
 function SortTh({
   label,
   k,
