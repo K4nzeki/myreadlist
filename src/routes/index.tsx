@@ -190,6 +190,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [filter, setFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [panelOpen, setPanelOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
