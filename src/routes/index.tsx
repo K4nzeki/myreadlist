@@ -441,6 +441,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           <div className="flex items-center gap-2 text-xs ml-auto lg:ml-0">
             <span className="text-muted-foreground hidden sm:inline">{email}</span>
             <button
+              onClick={() => setProfileOpen(true)}
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            >
+              <User className="h-3.5 w-3.5" />
+              Profile
+            </button>
+            <button
               onClick={() => supabase.auth.signOut()}
               className="h-8 px-3 rounded-md border border-border hover:bg-muted"
             >
@@ -449,6 +456,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           </div>
         </div>
       </header>
+
+      {profileOpen && (
+        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+      )}
 
       {/* Main grid */}
       <main className="flex-1 min-h-0 flex relative">
