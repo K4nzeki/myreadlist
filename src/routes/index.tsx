@@ -565,13 +565,32 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           </div>
         </section>
 
+        {/* Backdrop (mobile) */}
+        {panelOpen && (
+          <div
+            onClick={() => setPanelOpen(false)}
+            className="lg:hidden fixed inset-0 z-30 bg-background/70"
+          />
+        )}
+
         {/* Side panel */}
-        <aside className="flex flex-col min-h-0 bg-card">
-          <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+        <aside
+          className={`${panelOpen ? "flex" : "hidden"} flex-col min-h-0 bg-card fixed inset-y-0 right-0 z-40 w-[88%] max-w-sm border-l border-border shadow-xl lg:static lg:z-auto lg:w-[360px] lg:max-w-none lg:shadow-none`}
+        >
+          <div className="px-4 py-2 border-b border-border flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Bulk import</h2>
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
-              Title … Ch Status Type Reread
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="hidden sm:inline text-[10px] text-muted-foreground uppercase tracking-wide">
+                Title … Ch Status Type Reread
+              </span>
+              <button
+                onClick={() => setPanelOpen(false)}
+                aria-label="Close bulk import panel"
+                className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="p-4 flex flex-col gap-2 flex-1 min-h-0">
             <textarea
