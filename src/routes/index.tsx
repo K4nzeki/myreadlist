@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { Menu, X } from "lucide-react";
+import { Eye, EyeOff, Menu, User, X } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Tracker,
@@ -103,6 +103,8 @@ function AuthPanel() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -115,7 +117,10 @@ function AuthPanel() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: { username: username.trim() },
+          },
         });
         if (error) throw error;
         setMsg("Check your email to confirm, then sign in.");
@@ -151,15 +156,34 @@ function AuthPanel() {
           placeholder="you@example.com"
           className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
         />
-        <input
-          type="password"
-          required
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password (min 6)"
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
+        {mode === "signup" && (
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username (optional)"
+            maxLength={40}
+            className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+        )}
+        <div className="relative">
+          <input
+            type={showPw ? "text" : "password"}
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min 6)"
+            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            aria-label={showPw ? "Hide password" : "Show password"}
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
+          >
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
         <button
           type="submit"
           disabled={busy}
@@ -192,6 +216,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -416,6 +441,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           <div className="flex items-center gap-2 text-xs ml-auto lg:ml-0">
             <span className="text-muted-foreground hidden sm:inline">{email}</span>
             <button
+              onClick={() => setProfileOpen(true)}
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            >
+              <User className="h-3.5 w-3.5" />
+              Profile
+            </button>
+            <button
               onClick={() => supabase.auth.signOut()}
               className="h-8 px-3 rounded-md border border-border hover:bg-muted"
             >
@@ -424,6 +456,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           </div>
         </div>
       </header>
+
+      {profileOpen && (
+        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+      )}
 
       {/* Main grid */}
       <main className="flex-1 min-h-0 flex relative">
@@ -670,6 +706,154 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
         {value}
       </span>
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function ProfileDialog({
+  userId,
+  email,
+  onClose,
+}: {
+  userId: string;
+  email: string;
+  onClose: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [newEmail, setNewEmail] = useState(email);
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!active) return;
+      setUsername(data?.username ?? "");
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    const notes: string[] = [];
+    try {
+      const uname = username.trim();
+      if (uname.length > 40) throw new Error("Username must be 40 characters or fewer.");
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .upsert({ id: userId, username: uname || null }, { onConflict: "id" });
+      if (pErr)
+        throw new Error(
+          pErr.code === "23505" ? "That username is already taken." : pErr.message,
+        );
+      notes.push("Profile saved.");
+
+      const trimmedEmail = newEmail.trim();
+      if (trimmedEmail && trimmedEmail !== email) {
+        const { error } = await supabase.auth.updateUser(
+          { email: trimmedEmail },
+          { emailRedirectTo: window.location.origin },
+        );
+        if (error) throw error;
+        notes.push("Check your new email to confirm the change.");
+      }
+
+      if (password) {
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        setPassword("");
+        notes.push("Password updated.");
+      }
+      setMsg({ text: notes.join(" ") });
+    } catch (err) {
+      setMsg({ text: (err as Error).message, error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+      <form
+        onSubmit={save}
+        className="w-full max-w-sm flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Your profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close profile"
+            className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <label className="text-xs text-muted-foreground">Username</label>
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          disabled={loading}
+          maxLength={40}
+          placeholder={loading ? "Loading…" : "your name"}
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <label className="text-xs text-muted-foreground">Email</label>
+        <input
+          type="email"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <label className="text-xs text-muted-foreground">New password</label>
+        <div className="relative">
+          <input
+            type={showPw ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Leave blank to keep current"
+            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            aria-label={showPw ? "Hide password" : "Show password"}
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
+          >
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+
+        <button
+          type="submit"
+          disabled={busy || loading}
+          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "Saving…" : "Save changes"}
+        </button>
+        {msg && (
+          <div className={`text-xs ${msg.error ? "text-destructive" : "text-accent"}`}>
+            {msg.text}
+          </div>
+        )}
+      </form>
     </div>
   );
 }
