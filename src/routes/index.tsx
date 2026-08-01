@@ -3,8 +3,19 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { Eye, EyeOff, Menu, User, X } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Panels — Synced Reading Tracker" },
+      { name: "description", content: "Track and sync manga, manhwa, manhua, and comics across your devices." },
+      { property: "og:title", content: "Panels — Synced Reading Tracker" },
+      { property: "og:description", content: "A private reading tracker that keeps your progress synced across devices." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Tracker,
 });
 
@@ -219,23 +230,27 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const pending = useRef<Map<string, { patch: Partial<Entry>; timer: ReturnType<typeof setTimeout> }>>(
-    new Map(),
-  );
+  const reportDatabaseError = useCallback((action: string, error: { message: string }) => {
+    const message = `${action} failed: ${error.message}`;
+    console.error(`[Panels database] ${message}`, error);
+    setSyncError(message);
+    toast.error(message);
+  }, []);
 
   const reload = useCallback(async () => {
-    // Don't clobber edits that haven't been committed yet.
-    if (pending.current.size > 0) return;
     const { data, error } = await supabase
       .from("entries")
       .select("id, title, type, chapter, status, reread")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
-    if (!error && data) {
+    if (error) {
+      reportDatabaseError("Loading your list", error);
+    } else if (data) {
       setEntries(data as Entry[]);
       setSyncError(null);
     }
     setLoading(false);
-  }, []);
+  }, [reportDatabaseError, userId]);
 
   // Initial load
   useEffect(() => {
@@ -266,7 +281,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "entries", filter: `user_id=eq.${userId}` },
         (payload) => {
-          if (pending.current.size > 0) return;
           if (payload.eventType === "DELETE") {
             const oldId = (payload.old as { id?: string } | null)?.id;
             if (oldId) setEntries((prev) => prev.filter((e) => e.id !== oldId));
@@ -295,15 +309,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       void supabase.removeChannel(channel);
     };
   }, [userId]);
-
-  // Flush any queued edits before the page unloads
-  useEffect(() => {
-    const queue = pending.current;
-    return () => {
-      queue.forEach(({ timer }) => clearTimeout(timer));
-      queue.clear();
-    };
-  }, []);
 
   const stats = useMemo(() => {
     const s = {
@@ -367,46 +372,49 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     setSortDir(d);
   };
 
-  const flush = useCallback(
-    async (id: string) => {
-      const item = pending.current.get(id);
-      if (!item) return;
-      pending.current.delete(id);
-      const { error } = await supabase.from("entries").update(item.patch).eq("id", id);
-      if (error) {
-        setSyncError(error.message);
-        await reload();
-      } else {
-        setSyncError(null);
-      }
-    },
-    [reload],
-  );
-
   const update = useCallback(
-    (id: string, patch: Partial<Entry>) => {
-      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-      const existing = pending.current.get(id);
-      if (existing) clearTimeout(existing.timer);
-      const merged = { ...(existing?.patch ?? {}), ...patch };
-      const timer = setTimeout(() => void flush(id), 500);
-      pending.current.set(id, { patch: merged, timer });
+    async (id: string, patch: Partial<Entry>) => {
+      const { data, error } = await supabase
+        .from("entries")
+        .update(patch)
+        .eq("id", id)
+        .eq("user_id", userId)
+        .select("id, title, type, chapter, status, reread")
+        .maybeSingle();
+      if (error) {
+        reportDatabaseError("Saving your change", error);
+        return false;
+      }
+      if (!data) {
+        reportDatabaseError("Saving your change", { message: "No matching row was updated. Please refresh and sign in again." });
+        return false;
+      }
+      setEntries((prev) => prev.map((entry) => (entry.id === id ? (data as Entry) : entry)));
+      setSyncError(null);
+      return true;
     },
-    [flush],
+    [reportDatabaseError, userId],
   );
 
   const remove = async (id: string) => {
-    const existing = pending.current.get(id);
-    if (existing) {
-      clearTimeout(existing.timer);
-      pending.current.delete(id);
-    }
-    const { error } = await supabase.from("entries").delete().eq("id", id);
+    const { data, error } = await supabase
+      .from("entries")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
     if (error) {
-      setSyncError(error.message);
+      reportDatabaseError("Deleting the title", error);
+      return;
+    }
+    if (!data) {
+      reportDatabaseError("Deleting the title", { message: "No matching row was deleted." });
       return;
     }
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    setSyncError(null);
+    toast.success("Title deleted");
   };
   const addBlank = async () => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
@@ -420,12 +428,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       .select("id, title, type, chapter, status, reread")
       .single();
     if (error) {
-      setSyncError(error.message);
+      reportDatabaseError("Adding a title", error);
       return;
     }
     if (data) {
       setSyncError(null);
       setEntries((prev) => [data as Entry, ...prev]);
+      toast.success("Title saved to your synced list");
     }
   };
 
@@ -455,7 +464,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         .from("entries")
         .insert(rows)
         .select("id, title, type, chapter, status, reread");
-      if (error) errors.push(error.message);
+      if (error) {
+        errors.push(error.message);
+        reportDatabaseError("Importing titles", error);
+      }
       else if (data) {
         setEntries((prev) => [...(data as Entry[]), ...prev]);
         addedCount = data.length;
@@ -495,11 +507,15 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       }
       if (loaded.length) {
         const rows = loaded.map((p) => ({ ...p, user_id: userId }));
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("entries")
           .insert(rows)
           .select("id, title, type, chapter, status, reread");
-        if (data) setEntries((prev) => [...(data as Entry[]), ...prev]);
+        if (error) reportDatabaseError("Loading titles", error);
+        else if (data) {
+          setEntries((prev) => [...(data as Entry[]), ...prev]);
+          toast.success(`${data.length} title${data.length === 1 ? "" : "s"} saved`);
+        }
       }
     };
     reader.readAsText(file);
@@ -518,7 +534,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
       {syncError && (
         <div className="px-3 sm:px-6 py-1.5 text-xs bg-destructive/15 text-destructive border-b border-destructive/30">
-          Couldn’t save to your list: {syncError}
+          {syncError}
         </div>
       )}
       {/* Header + stats */}
@@ -641,15 +657,26 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                   >
                     <td className="px-4 py-1.5">
                       <input
-                        value={e.title}
-                        onChange={(ev) => update(e.id, { title: ev.target.value })}
+                         key={`${e.id}-${e.title}`}
+                         defaultValue={e.title}
+                         onBlur={(ev) => {
+                           const title = ev.target.value.trim();
+                           if (!title) {
+                             ev.target.value = e.title;
+                             toast.error("A title cannot be empty");
+                           } else if (title !== e.title) {
+                             void update(e.id, { title }).then((saved) => {
+                               if (!saved) ev.target.value = e.title;
+                             });
+                           }
+                         }}
                         className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                       />
                     </td>
                     <td className="px-2 py-1.5">
                       <select
                         value={e.type}
-                        onChange={(ev) => update(e.id, { type: ev.target.value as EntryType })}
+                         onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
                         className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
                       >
                         {TYPES.map((t) => (
@@ -663,14 +690,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <div className="flex items-center gap-1 justify-end">
                         <input
                           type="number"
-                          value={e.chapter}
-                          onChange={(ev) =>
-                            update(e.id, { chapter: Number(ev.target.value) || 0 })
-                          }
+                           key={`${e.id}-chapter-${e.chapter}`}
+                           defaultValue={e.chapter}
+                           onBlur={(ev) => {
+                             const chapter = Number(ev.target.value) || 0;
+                             if (chapter !== e.chapter) void update(e.id, { chapter });
+                           }}
                           className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
                         />
                         <button
-                          onClick={() => update(e.id, { chapter: e.chapter + 1 })}
+                           onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
                           className="opacity-0 group-hover:opacity-100 transition text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
                           title="+1 chapter"
                         >
@@ -682,7 +711,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <select
                         value={e.status}
                         onChange={(ev) =>
-                          update(e.id, { status: ev.target.value as EntryStatus })
+                           void update(e.id, { status: ev.target.value as EntryStatus })
                         }
                         className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
                       >
@@ -696,10 +725,12 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     <td className="px-2 py-1.5">
                       <input
                         type="number"
-                        value={e.reread}
-                        onChange={(ev) =>
-                          update(e.id, { reread: Number(ev.target.value) || 0 })
-                        }
+                         key={`${e.id}-reread-${e.reread}`}
+                         defaultValue={e.reread}
+                         onBlur={(ev) => {
+                           const reread = Number(ev.target.value) || 0;
+                           if (reread !== e.reread) void update(e.id, { reread });
+                         }}
                         className="w-full bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
                       />
                     </td>
