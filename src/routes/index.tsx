@@ -213,22 +213,97 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>("title");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pending = useRef<Map<string, { patch: Partial<Entry>; timer: ReturnType<typeof setTimeout> }>>(
+    new Map(),
+  );
 
+  const reload = useCallback(async () => {
+    // Don't clobber edits that haven't been committed yet.
+    if (pending.current.size > 0) return;
+    const { data, error } = await supabase
+      .from("entries")
+      .select("id, title, type, chapter, status, reread")
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      setEntries(data as Entry[]);
+      setSyncError(null);
+    }
+    setLoading(false);
+  }, []);
+
+  // Initial load
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from("entries")
-        .select("id, title, type, chapter, status, reread")
-        .order("created_at", { ascending: false });
-      if (!error && data) setEntries(data as Entry[]);
-      setLoading(false);
-    })();
+    void reload();
+  }, [userId, reload]);
+
+  // Refetch on window focus / tab visible / reconnect
+  useEffect(() => {
+    const onFocus = () => void reload();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void reload();
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [reload]);
+
+  // Realtime sync across devices
+  useEffect(() => {
+    const channel = supabase
+      .channel(`entries-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "entries", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          if (pending.current.size > 0) return;
+          if (payload.eventType === "DELETE") {
+            const oldId = (payload.old as { id?: string } | null)?.id;
+            if (oldId) setEntries((prev) => prev.filter((e) => e.id !== oldId));
+            return;
+          }
+          const row = payload.new as Entry;
+          setEntries((prev) => {
+            const idx = prev.findIndex((e) => e.id === row.id);
+            const clean: Entry = {
+              id: row.id,
+              title: row.title,
+              type: row.type,
+              chapter: row.chapter,
+              status: row.status,
+              reread: row.reread,
+            };
+            if (idx === -1) return [clean, ...prev];
+            const next = [...prev];
+            next[idx] = clean;
+            return next;
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, [userId]);
+
+  // Flush any queued edits before the page unloads
+  useEffect(() => {
+    const queue = pending.current;
+    return () => {
+      queue.forEach(({ timer }) => clearTimeout(timer));
+      queue.clear();
+    };
+  }, []);
 
   const stats = useMemo(() => {
     const s = {
@@ -292,13 +367,46 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     setSortDir(d);
   };
 
-  const update = (id: string, patch: Partial<Entry>) => {
-    setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-    void supabase.from("entries").update(patch).eq("id", id);
-  };
+  const flush = useCallback(
+    async (id: string) => {
+      const item = pending.current.get(id);
+      if (!item) return;
+      pending.current.delete(id);
+      const { error } = await supabase.from("entries").update(item.patch).eq("id", id);
+      if (error) {
+        setSyncError(error.message);
+        await reload();
+      } else {
+        setSyncError(null);
+      }
+    },
+    [reload],
+  );
+
+  const update = useCallback(
+    (id: string, patch: Partial<Entry>) => {
+      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+      const existing = pending.current.get(id);
+      if (existing) clearTimeout(existing.timer);
+      const merged = { ...(existing?.patch ?? {}), ...patch };
+      const timer = setTimeout(() => void flush(id), 500);
+      pending.current.set(id, { patch: merged, timer });
+    },
+    [flush],
+  );
+
   const remove = async (id: string) => {
+    const existing = pending.current.get(id);
+    if (existing) {
+      clearTimeout(existing.timer);
+      pending.current.delete(id);
+    }
+    const { error } = await supabase.from("entries").delete().eq("id", id);
+    if (error) {
+      setSyncError(error.message);
+      return;
+    }
     setEntries((prev) => prev.filter((e) => e.id !== id));
-    await supabase.from("entries").delete().eq("id", id);
   };
   const addBlank = async () => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
