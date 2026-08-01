@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { Eye, EyeOff, Menu, User, X } from "lucide-react";
@@ -419,7 +419,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       .insert(row)
       .select("id, title, type, chapter, status, reread")
       .single();
-    if (!error && data) setEntries((prev) => [data as Entry, ...prev]);
+    if (error) {
+      setSyncError(error.message);
+      return;
+    }
+    if (data) {
+      setSyncError(null);
+      setEntries((prev) => [data as Entry, ...prev]);
+    }
   };
 
   const runImport = async () => {
