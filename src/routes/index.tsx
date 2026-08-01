@@ -516,6 +516,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
+      {syncError && (
+        <div className="px-3 sm:px-6 py-1.5 text-xs bg-destructive/15 text-destructive border-b border-destructive/30">
+          Couldn’t save to your list: {syncError}
+        </div>
+      )}
       {/* Header + stats */}
       <header className="border-b border-border px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-3 sm:gap-6 flex-wrap">
         <div className="flex items-baseline gap-2 min-w-0">
