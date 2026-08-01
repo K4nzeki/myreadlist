@@ -230,10 +230,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const pending = useRef<Map<string, { patch: Partial<Entry>; timer: ReturnType<typeof setTimeout> }>>(
-    new Map(),
-  );
-
   const reportDatabaseError = useCallback((action: string, error: { message: string }) => {
     const message = `${action} failed: ${error.message}`;
     console.error(`[Panels database] ${message}`, error);
@@ -242,8 +238,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   }, []);
 
   const reload = useCallback(async () => {
-    // Don't clobber edits that haven't been committed yet.
-    if (pending.current.size > 0) return;
     const { data, error } = await supabase
       .from("entries")
       .select("id, title, type, chapter, status, reread")
@@ -287,7 +281,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "entries", filter: `user_id=eq.${userId}` },
         (payload) => {
-          if (pending.current.size > 0) return;
           if (payload.eventType === "DELETE") {
             const oldId = (payload.old as { id?: string } | null)?.id;
             if (oldId) setEntries((prev) => prev.filter((e) => e.id !== oldId));
@@ -316,15 +309,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       void supabase.removeChannel(channel);
     };
   }, [userId]);
-
-  // Flush any queued edits before the page unloads
-  useEffect(() => {
-    const queue = pending.current;
-    return () => {
-      queue.forEach(({ timer }) => clearTimeout(timer));
-      queue.clear();
-    };
-  }, []);
 
   const stats = useMemo(() => {
     const s = {
@@ -413,11 +397,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   );
 
   const remove = async (id: string) => {
-    const existing = pending.current.get(id);
-    if (existing) {
-      clearTimeout(existing.timer);
-      pending.current.delete(id);
-    }
     const { data, error } = await supabase
       .from("entries")
       .delete()
@@ -555,7 +534,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
       {syncError && (
         <div className="px-3 sm:px-6 py-1.5 text-xs bg-destructive/15 text-destructive border-b border-destructive/30">
-          Couldn’t save to your list: {syncError}
+          {syncError}
         </div>
       )}
       {/* Header + stats */}
