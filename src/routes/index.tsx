@@ -874,10 +874,12 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
 function ProfileDialog({
   userId,
   email,
+  stats,
   onClose,
 }: {
   userId: string;
   email: string;
+  stats: { chapters: number; total: number; rereads: number; types: Record<EntryType, number>; statuses: Record<EntryStatus, number>; matrix: Record<EntryType, Record<EntryStatus, number>> };
   onClose: () => void;
 }) {
   const [username, setUsername] = useState("");
@@ -887,6 +889,7 @@ function ProfileDialog({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [statsOpen, setStatsOpen] = useState(true);
 
   useEffect(() => {
     let active = true;
