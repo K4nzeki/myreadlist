@@ -29,12 +29,13 @@ type Entry = {
   chapter: number;
   status: EntryStatus;
   reread: number;
+  created_at?: string;
 };
 
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
 
-type SortKey = "title" | "type" | "chapter" | "status" | "reread";
+type SortKey = "title" | "type" | "chapter" | "status" | "reread" | "created_at";
 type SortDir = "asc" | "desc";
 
 function serialize(entries: Entry[]) {
@@ -224,8 +225,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey | null>("title");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [statsOpen, setStatsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -240,7 +242,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const reload = useCallback(async () => {
     const { data, error } = await supabase
       .from("entries")
-      .select("id, title, type, chapter, status, reread")
+      .select("id, title, type, chapter, status, reread, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
@@ -317,12 +319,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       rereads: 0,
       types: { Manga: 0, Manhwa: 0, Manhua: 0, Comic: 0 } as Record<EntryType, number>,
       statuses: { Ongoing: 0, Dropped: 0, Cancelled: 0, Finished: 0 } as Record<EntryStatus, number>,
+      matrix: Object.fromEntries(
+        TYPES.map((t) => [t, { Ongoing: 0, Dropped: 0, Cancelled: 0, Finished: 0 }]),
+      ) as Record<EntryType, Record<EntryStatus, number>>,
     };
     for (const e of entries) {
       s.chapters += Number(e.chapter) || 0;
       s.rereads += Number(e.reread) || 0;
       s.types[e.type]++;
       s.statuses[e.status]++;
+      if (s.matrix[e.type]) s.matrix[e.type][e.status]++;
     }
     return s;
   }, [entries]);
@@ -340,9 +346,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     if (!sortKey) return list;
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
+      const av = a[sortKey] ?? "";
+      const bv = b[sortKey] ?? "";
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      if (sortKey === "created_at") return String(av) < String(bv) ? -dir : String(av) > String(bv) ? dir : 0;
       return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
     });
   }, [entries, filter, sortKey, sortDir]);
@@ -379,7 +386,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         .update(patch)
         .eq("id", id)
         .eq("user_id", userId)
-        .select("id, title, type, chapter, status, reread")
+        .select("id, title, type, chapter, status, reread, created_at")
         .maybeSingle();
       if (error) {
         reportDatabaseError("Saving your change", error);
@@ -425,7 +432,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     const { data, error } = await supabase
       .from("entries")
       .insert(row)
-      .select("id, title, type, chapter, status, reread")
+      .select("id, title, type, chapter, status, reread, created_at")
       .single();
     if (error) {
       reportDatabaseError("Adding a title", error);
@@ -463,7 +470,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       const { data, error } = await supabase
         .from("entries")
         .insert(rows)
-        .select("id, title, type, chapter, status, reread");
+        .select("id, title, type, chapter, status, reread, created_at");
       if (error) {
         errors.push(error.message);
         reportDatabaseError("Importing titles", error);
@@ -510,7 +517,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         const { data, error } = await supabase
           .from("entries")
           .insert(rows)
-          .select("id, title, type, chapter, status, reread");
+          .select("id, title, type, chapter, status, reread, created_at");
         if (error) reportDatabaseError("Loading titles", error);
         else if (data) {
           setEntries((prev) => [...(data as Entry[]), ...prev]);
@@ -597,6 +604,55 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
       )}
 
+      {/* Status-by-type breakdown */}
+      <div className="border-b border-border px-3 sm:px-6 py-1.5">
+        <button
+          onClick={() => setStatsOpen((v) => !v)}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          {statsOpen ? "▾" : "▸"} Status by type
+        </button>
+        {statsOpen && (
+          <div className="mt-2 overflow-x-auto">
+            <table className="text-xs min-w-[420px]">
+              <thead className="text-muted-foreground">
+                <tr>
+                  <th className="text-left font-medium px-2 py-1">Type</th>
+                  {STATUSES.map((s) => (
+                    <th key={s} className="text-right font-medium px-2 py-1">
+                      {s}
+                    </th>
+                  ))}
+                  <th className="text-right font-medium px-2 py-1">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {TYPES.map((t) => (
+                  <tr key={t} className="border-t border-border">
+                    <td className="px-2 py-1 font-medium">{t}</td>
+                    {STATUSES.map((s) => (
+                      <td key={s} className="px-2 py-1 text-right tabular-nums">
+                        {stats.matrix[t][s]}
+                      </td>
+                    ))}
+                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
+                  </tr>
+                ))}
+                <tr className="border-t border-border text-muted-foreground">
+                  <td className="px-2 py-1 font-medium">All</td>
+                  {STATUSES.map((s) => (
+                    <td key={s} className="px-2 py-1 text-right tabular-nums">
+                      {stats.statuses[s]}
+                    </td>
+                  ))}
+                  <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Main grid */}
       <main className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
@@ -615,6 +671,8 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               title="Sort"
             >
               <option value="">Sort</option>
+              <option value="created_at:desc">Latest added</option>
+              <option value="created_at:asc">Oldest added</option>
               <option value="title:asc">Title A → Z</option>
               <option value="title:desc">Title Z → A</option>
               <option value="chapter:desc">Chapter High → Low</option>
