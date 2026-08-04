@@ -604,54 +604,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         <ProfileDialog userId={userId} email={email} stats={stats} onClose={() => setProfileOpen(false)} />
       )}
 
-      {/* Status-by-type breakdown */}
-      <div className="border-b border-border px-3 sm:px-6 py-1.5">
-        <button
-          onClick={() => setStatsOpen((v) => !v)}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          {statsOpen ? "▾" : "▸"} Status by type
-        </button>
-        {statsOpen && (
-          <div className="mt-2 overflow-x-auto">
-            <table className="text-xs min-w-[420px]">
-              <thead className="text-muted-foreground">
-                <tr>
-                  <th className="text-left font-medium px-2 py-1">Type</th>
-                  {STATUSES.map((s) => (
-                    <th key={s} className="text-right font-medium px-2 py-1">
-                      {s}
-                    </th>
-                  ))}
-                  <th className="text-right font-medium px-2 py-1">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {TYPES.map((t) => (
-                  <tr key={t} className="border-t border-border">
-                    <td className="px-2 py-1 font-medium">{t}</td>
-                    {STATUSES.map((s) => (
-                      <td key={s} className="px-2 py-1 text-right tabular-nums">
-                        {stats.matrix[t][s]}
-                      </td>
-                    ))}
-                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
-                  </tr>
-                ))}
-                <tr className="border-t border-border text-muted-foreground">
-                  <td className="px-2 py-1 font-medium">All</td>
-                  {STATUSES.map((s) => (
-                    <td key={s} className="px-2 py-1 text-right tabular-nums">
-                      {stats.statuses[s]}
-                    </td>
-                  ))}
-                  <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {/* Main grid */}
       <main className="flex-1 min-h-0 flex relative">
