@@ -227,7 +227,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [filter, setFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [statsOpen, setStatsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -601,57 +600,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       </header>
 
       {profileOpen && (
-        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+        <ProfileDialog userId={userId} email={email} stats={stats} onClose={() => setProfileOpen(false)} />
       )}
 
-      {/* Status-by-type breakdown */}
-      <div className="border-b border-border px-3 sm:px-6 py-1.5">
-        <button
-          onClick={() => setStatsOpen((v) => !v)}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          {statsOpen ? "▾" : "▸"} Status by type
-        </button>
-        {statsOpen && (
-          <div className="mt-2 overflow-x-auto">
-            <table className="text-xs min-w-[420px]">
-              <thead className="text-muted-foreground">
-                <tr>
-                  <th className="text-left font-medium px-2 py-1">Type</th>
-                  {STATUSES.map((s) => (
-                    <th key={s} className="text-right font-medium px-2 py-1">
-                      {s}
-                    </th>
-                  ))}
-                  <th className="text-right font-medium px-2 py-1">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {TYPES.map((t) => (
-                  <tr key={t} className="border-t border-border">
-                    <td className="px-2 py-1 font-medium">{t}</td>
-                    {STATUSES.map((s) => (
-                      <td key={s} className="px-2 py-1 text-right tabular-nums">
-                        {stats.matrix[t][s]}
-                      </td>
-                    ))}
-                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
-                  </tr>
-                ))}
-                <tr className="border-t border-border text-muted-foreground">
-                  <td className="px-2 py-1 font-medium">All</td>
-                  {STATUSES.map((s) => (
-                    <td key={s} className="px-2 py-1 text-right tabular-nums">
-                      {stats.statuses[s]}
-                    </td>
-                  ))}
-                  <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
 
       {/* Main grid */}
       <main className="flex-1 min-h-0 flex relative">
@@ -922,10 +873,12 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
 function ProfileDialog({
   userId,
   email,
+  stats,
   onClose,
 }: {
   userId: string;
   email: string;
+  stats: { chapters: number; total: number; rereads: number; types: Record<EntryType, number>; statuses: Record<EntryStatus, number>; matrix: Record<EntryType, Record<EntryStatus, number>> };
   onClose: () => void;
 }) {
   const [username, setUsername] = useState("");
@@ -935,6 +888,7 @@ function ProfileDialog({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [statsOpen, setStatsOpen] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -1048,6 +1002,56 @@ function ProfileDialog({
           >
             {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
+        </div>
+
+        {/* Status-by-type breakdown */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <button
+            type="button"
+            onClick={() => setStatsOpen((v) => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            {statsOpen ? "▾" : "▸"} Status by type
+          </button>
+          {statsOpen && (
+            <div className="overflow-x-auto">
+              <table className="text-xs min-w-[360px] w-full">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-medium px-2 py-1">Type</th>
+                    {STATUSES.map((s) => (
+                      <th key={s} className="text-right font-medium px-2 py-1">
+                        {s}
+                      </th>
+                    ))}
+                    <th className="text-right font-medium px-2 py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TYPES.map((t) => (
+                    <tr key={t} className="border-t border-border">
+                      <td className="px-2 py-1 font-medium">{t}</td>
+                      {STATUSES.map((s) => (
+                        <td key={s} className="px-2 py-1 text-right tabular-nums">
+                          {stats.matrix[t][s]}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-border text-muted-foreground">
+                    <td className="px-2 py-1 font-medium">All</td>
+                    {STATUSES.map((s) => (
+                      <td key={s} className="px-2 py-1 text-right tabular-nums">
+                        {stats.statuses[s]}
+                      </td>
+                    ))}
+                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <button
