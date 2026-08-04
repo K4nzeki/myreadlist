@@ -1005,6 +1005,56 @@ function ProfileDialog({
           </button>
         </div>
 
+        {/* Status-by-type breakdown */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <button
+            type="button"
+            onClick={() => setStatsOpen((v) => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            {statsOpen ? "▾" : "▸"} Status by type
+          </button>
+          {statsOpen && (
+            <div className="overflow-x-auto">
+              <table className="text-xs min-w-[360px] w-full">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-medium px-2 py-1">Type</th>
+                    {STATUSES.map((s) => (
+                      <th key={s} className="text-right font-medium px-2 py-1">
+                        {s}
+                      </th>
+                    ))}
+                    <th className="text-right font-medium px-2 py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TYPES.map((t) => (
+                    <tr key={t} className="border-t border-border">
+                      <td className="px-2 py-1 font-medium">{t}</td>
+                      {STATUSES.map((s) => (
+                        <td key={s} className="px-2 py-1 text-right tabular-nums">
+                          {stats.matrix[t][s]}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-border text-muted-foreground">
+                    <td className="px-2 py-1 font-medium">All</td>
+                    {STATUSES.map((s) => (
+                      <td key={s} className="px-2 py-1 text-right tabular-nums">
+                        {stats.statuses[s]}
+                      </td>
+                    ))}
+                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <button
           type="submit"
           disabled={busy || loading}
