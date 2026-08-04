@@ -601,7 +601,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       </header>
 
       {profileOpen && (
-        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+        <ProfileDialog userId={userId} email={email} stats={stats} onClose={() => setProfileOpen(false)} />
       )}
 
       {/* Status-by-type breakdown */}
