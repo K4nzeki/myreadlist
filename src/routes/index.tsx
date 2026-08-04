@@ -240,7 +240,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const reload = useCallback(async () => {
     const { data, error } = await supabase
       .from("entries")
-      .select("id, title, type, chapter, status, reread")
+      .select("id, title, type, chapter, status, reread, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
@@ -379,7 +379,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         .update(patch)
         .eq("id", id)
         .eq("user_id", userId)
-        .select("id, title, type, chapter, status, reread")
+        .select("id, title, type, chapter, status, reread, created_at")
         .maybeSingle();
       if (error) {
         reportDatabaseError("Saving your change", error);
@@ -425,7 +425,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     const { data, error } = await supabase
       .from("entries")
       .insert(row)
-      .select("id, title, type, chapter, status, reread")
+      .select("id, title, type, chapter, status, reread, created_at")
       .single();
     if (error) {
       reportDatabaseError("Adding a title", error);
@@ -463,7 +463,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       const { data, error } = await supabase
         .from("entries")
         .insert(rows)
-        .select("id, title, type, chapter, status, reread");
+        .select("id, title, type, chapter, status, reread, created_at");
       if (error) {
         errors.push(error.message);
         reportDatabaseError("Importing titles", error);
@@ -510,7 +510,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         const { data, error } = await supabase
           .from("entries")
           .insert(rows)
-          .select("id, title, type, chapter, status, reread");
+          .select("id, title, type, chapter, status, reread, created_at");
         if (error) reportDatabaseError("Loading titles", error);
         else if (data) {
           setEntries((prev) => [...(data as Entry[]), ...prev]);
