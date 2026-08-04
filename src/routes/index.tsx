@@ -227,7 +227,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [filter, setFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [statsOpen, setStatsOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
