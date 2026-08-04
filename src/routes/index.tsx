@@ -4,6 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { Eye, EyeOff, Menu, User, X } from "lucide-react";
 import { toast } from "sonner";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+const STATUS_FILL: Record<string, string> = {
+  Ongoing: "var(--ongoing)",
+  Dropped: "var(--dropped)",
+  Cancelled: "var(--cancelled)",
+  Finished: "var(--finished)",
+};
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -1002,6 +1010,37 @@ function ProfileDialog({
           >
             {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
+        </div>
+
+        {/* Status-by-type chart */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <div className="text-xs text-muted-foreground">Titles by type & status</div>
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={TYPES.map((t) => ({ type: t, ...stats.matrix[t] }))}
+                margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="type" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {STATUSES.map((s) => (
+                  <Bar key={s} dataKey={s} stackId="a" fill={STATUS_FILL[s]} radius={[2, 2, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Status-by-type breakdown */}
