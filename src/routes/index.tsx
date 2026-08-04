@@ -29,12 +29,13 @@ type Entry = {
   chapter: number;
   status: EntryStatus;
   reread: number;
+  created_at?: string;
 };
 
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
 
-type SortKey = "title" | "type" | "chapter" | "status" | "reread";
+type SortKey = "title" | "type" | "chapter" | "status" | "reread" | "created_at";
 type SortDir = "asc" | "desc";
 
 function serialize(entries: Entry[]) {
