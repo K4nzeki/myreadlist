@@ -1009,6 +1009,39 @@ function ProfileDialog({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [statsOpen, setStatsOpen] = useState(true);
+  const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const start = new Date();
+      start.setUTCDate(start.getUTCDate() - 29);
+      const startDay = start.toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("chapter_log")
+        .select("day, delta")
+        .eq("user_id", userId)
+        .gte("day", startDay);
+      if (!active) return;
+      const totals = new Map<string, number>();
+      for (const row of data ?? []) {
+        totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
+      }
+      const series: { day: string; label: string; chapters: number }[] = [];
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(start);
+        d.setUTCDate(start.getUTCDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        series.push({ day: key, label: `Day ${i + 1}`, chapters: totals.get(key) ?? 0 });
+      }
+      setDaily(series);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
 
   useEffect(() => {
     let active = true;
