@@ -645,8 +645,108 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto">
-            <table className="w-full min-w-[620px] text-sm">
+          <div className="flex-1 overflow-auto scroll-touch safe-b">
+            {/* Mobile card list */}
+            <ul className="md:hidden divide-y divide-border">
+              {filtered.length === 0 && (
+                <li className="px-4 py-16 text-center text-muted-foreground text-sm">
+                  {entries.length === 0
+                    ? "No titles yet. Add one, or use the menu to paste a list."
+                    : "Nothing matches that filter."}
+                </li>
+              )}
+              {filtered.map((e) => (
+                <li key={e.id} className={`px-3 py-3 ${statusRowBorder(e.status)}`}>
+                  <div className="flex items-start gap-2">
+                    <input
+                      key={`m-${e.id}-${e.title}`}
+                      defaultValue={e.title}
+                      onBlur={(ev) => {
+                        const title = ev.target.value.trim();
+                        if (!title) {
+                          ev.target.value = e.title;
+                          toast.error("A title cannot be empty");
+                        } else if (title !== e.title) {
+                          void update(e.id, { title }).then((saved) => {
+                            if (!saved) ev.target.value = e.title;
+                          });
+                        }
+                      }}
+                      className="min-w-0 flex-1 bg-transparent font-medium outline-none focus:bg-input rounded px-2 py-1"
+                    />
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete "${e.title}"?`)) remove(e.id);
+                      }}
+                      aria-label="Delete title"
+                      className="shrink-0 h-9 w-9 grid place-items-center rounded-md text-muted-foreground active:text-destructive text-xl leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <select
+                      value={e.type}
+                      onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
+                      className="h-10 rounded-md bg-input px-2 outline-none"
+                    >
+                      {TYPES.map((t) => (
+                        <option key={t} value={t} className="bg-card">
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={e.status}
+                      onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
+                      className="h-10 rounded-md bg-input px-2 outline-none"
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s} className="bg-card">
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">Ch.</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        key={`m-${e.id}-chapter-${e.chapter}`}
+                        defaultValue={e.chapter}
+                        onBlur={(ev) => {
+                          const chapter = Number(ev.target.value) || 0;
+                          if (chapter !== e.chapter) void update(e.id, { chapter });
+                        }}
+                        className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                      />
+                      <button
+                        onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
+                        className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                      >
+                        +1
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground shrink-0">Reread</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        key={`m-${e.id}-reread-${e.reread}`}
+                        defaultValue={e.reread}
+                        onBlur={(ev) => {
+                          const reread = Number(ev.target.value) || 0;
+                          if (reread !== e.reread) void update(e.id, { reread });
+                        }}
+                        className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                      />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <table className="hidden md:table w-full min-w-[620px] text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
                 <tr>
                   <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
@@ -779,7 +879,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
         {/* Side panel */}
         <aside
-          className={`${panelOpen ? "flex" : "hidden"} flex-col min-h-0 bg-card fixed inset-y-0 right-0 z-40 w-[88%] max-w-sm border-l border-border shadow-xl lg:static lg:z-auto lg:w-[360px] lg:max-w-none lg:shadow-none`}
+          className={`${panelOpen ? "flex" : "hidden"} flex-col min-h-0 bg-card fixed inset-y-0 right-0 z-40 w-[88%] max-w-sm border-l border-border shadow-xl safe-t safe-b lg:static lg:z-auto lg:w-[360px] lg:max-w-none lg:shadow-none lg:pt-0 lg:pb-0`}
         >
           <div className="px-4 py-2 border-b border-border flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">Bulk import</h2>
