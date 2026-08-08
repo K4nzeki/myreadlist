@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      chapter_log: {
+        Row: {
+          created_at: string
+          day: string
+          delta: number
+          entry_id: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day?: string
+          delta: number
+          entry_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          delta?: number
+          entry_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_log_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entries: {
         Row: {
           chapter: number

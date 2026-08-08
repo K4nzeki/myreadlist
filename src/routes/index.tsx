@@ -229,6 +229,7 @@ function AuthPanel() {
 
 function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const entriesRef = useRef<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
@@ -239,6 +240,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
   const reportDatabaseError = useCallback((action: string, error: { message: string }) => {
     const message = `${action} failed: ${error.message}`;
     console.error(`[Panels database] ${message}`, error);
@@ -388,6 +393,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   const update = useCallback(
     async (id: string, patch: Partial<Entry>) => {
+      const before = entriesRef.current.find((entry) => entry.id === id);
       const { data, error } = await supabase
         .from("entries")
         .update(patch)
@@ -405,6 +411,12 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       }
       setEntries((prev) => prev.map((entry) => (entry.id === id ? (data as Entry) : entry)));
       setSyncError(null);
+      if (before && typeof patch.chapter === "number") {
+        const delta = (data as Entry).chapter - before.chapter;
+        if (delta > 0) {
+          void supabase.from("chapter_log").insert({ user_id: userId, entry_id: id, delta });
+        }
+      }
       return true;
     },
     [reportDatabaseError, userId],
@@ -997,6 +1009,39 @@ function ProfileDialog({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [statsOpen, setStatsOpen] = useState(true);
+  const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const start = new Date();
+      start.setUTCDate(start.getUTCDate() - 29);
+      const startDay = start.toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from("chapter_log")
+        .select("day, delta")
+        .eq("user_id", userId)
+        .gte("day", startDay);
+      if (!active) return;
+      const totals = new Map<string, number>();
+      for (const row of data ?? []) {
+        totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
+      }
+      const series: { day: string; label: string; chapters: number }[] = [];
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(start);
+        d.setUTCDate(start.getUTCDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        series.push({ day: key, label: `Day ${i + 1}`, chapters: totals.get(key) ?? 0 });
+      }
+      setDaily(series);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
 
   useEffect(() => {
     let active = true;
@@ -1110,6 +1155,49 @@ function ProfileDialog({
           >
             {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
+        </div>
+
+        {/* Chapters added, day 1-30 */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-xs text-muted-foreground">Chapters added — day 1-30</div>
+            <div className="text-sm font-semibold">
+              {daily30Total.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+            </div>
+          </div>
+          <div className="h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={daily} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  interval={4}
+                  tickFormatter={(v: string) => v.replace("Day ", "")}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  labelFormatter={(label: string, payload) =>
+                    `${label}${payload?.[0]?.payload?.day ? ` · ${payload[0].payload.day}` : ""}`
+                  }
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                  }}
+                />
+                <Bar dataKey="chapters" name="Chapters" fill="var(--primary)" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Day 1 is 30 days ago, day 30 is today. Counted whenever a chapter number goes up.
+          </p>
         </div>
 
         {/* Status-by-type chart */}
