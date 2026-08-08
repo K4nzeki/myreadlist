@@ -1157,6 +1157,49 @@ function ProfileDialog({
           </button>
         </div>
 
+        {/* Chapters added, day 1-30 */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-xs text-muted-foreground">Chapters added — day 1-30</div>
+            <div className="text-sm font-semibold">
+              {daily30Total.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+            </div>
+          </div>
+          <div className="h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={daily} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  interval={4}
+                  tickFormatter={(v: string) => v.replace("Day ", "")}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  labelFormatter={(label: string, payload) =>
+                    `${label}${payload?.[0]?.payload?.day ? ` · ${payload[0].payload.day}` : ""}`
+                  }
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                  }}
+                />
+                <Bar dataKey="chapters" name="Chapters" fill="var(--primary)" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Day 1 is 30 days ago, day 30 is today. Counted whenever a chapter number goes up.
+          </p>
+        </div>
+
         {/* Status-by-type chart */}
         <div className="border border-border rounded-md p-3 space-y-2">
           <div className="text-xs text-muted-foreground">Titles by type & status</div>
