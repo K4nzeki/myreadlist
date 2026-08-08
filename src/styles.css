@@ -148,5 +148,36 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
   }
+
+  /* iOS Safari zooms in when a focused control has font-size < 16px */
+  @media (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@utility scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@utility safe-t {
+  padding-top: env(safe-area-inset-top);
+}
+
+@utility safe-b {
+  padding-bottom: env(safe-area-inset-bottom);
 }
