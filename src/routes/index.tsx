@@ -229,6 +229,7 @@ function AuthPanel() {
 
 function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
+  const entriesRef = useRef<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
