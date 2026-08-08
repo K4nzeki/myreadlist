@@ -388,6 +388,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   const update = useCallback(
     async (id: string, patch: Partial<Entry>) => {
+      const before = entriesRef.current.find((entry) => entry.id === id);
       const { data, error } = await supabase
         .from("entries")
         .update(patch)
@@ -405,6 +406,12 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       }
       setEntries((prev) => prev.map((entry) => (entry.id === id ? (data as Entry) : entry)));
       setSyncError(null);
+      if (before && typeof patch.chapter === "number") {
+        const delta = (data as Entry).chapter - before.chapter;
+        if (delta > 0) {
+          void supabase.from("chapter_log").insert({ user_id: userId, entry_id: id, delta });
+        }
+      }
       return true;
     },
     [reportDatabaseError, userId],
