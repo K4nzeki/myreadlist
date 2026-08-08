@@ -240,6 +240,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
   const reportDatabaseError = useCallback((action: string, error: { message: string }) => {
     const message = `${action} failed: ${error.message}`;
     console.error(`[Panels database] ${message}`, error);
