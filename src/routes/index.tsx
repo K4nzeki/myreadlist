@@ -538,14 +538,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   if (loading) {
     return (
-      <div className="h-screen w-screen grid place-items-center bg-background text-muted-foreground text-sm">
+      <div className="h-[100dvh] w-full grid place-items-center bg-background text-muted-foreground text-sm">
         Loading your list…
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col">
+    <div className="h-[100dvh] w-full overflow-hidden bg-background text-foreground flex flex-col safe-t">
       {syncError && (
         <div className="px-3 sm:px-6 py-1.5 text-xs bg-destructive/15 text-destructive border-b border-destructive/30">
           {syncError}
