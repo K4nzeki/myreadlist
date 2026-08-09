@@ -92,34 +92,43 @@ export type Database = {
       }
       entries: {
         Row: {
+          author: string | null
           chapter: number
+          cover_url: string | null
           created_at: string
           id: string
           reread: number
           status: string
           title: string
+          total_chapters: number | null
           type: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          author?: string | null
           chapter?: number
+          cover_url?: string | null
           created_at?: string
           id?: string
           reread?: number
           status: string
           title: string
+          total_chapters?: number | null
           type: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          author?: string | null
           chapter?: number
+          cover_url?: string | null
           created_at?: string
           id?: string
           reread?: number
           status?: string
           title?: string
+          total_chapters?: number | null
           type?: string
           updated_at?: string
           user_id?: string
