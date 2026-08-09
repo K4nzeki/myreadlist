@@ -644,7 +644,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       <main className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
-          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-border">
+          <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 border-b border-border">
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
