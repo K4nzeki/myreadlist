@@ -43,6 +43,13 @@ type Entry = {
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
 
+// Single source of truth for "what day is it" across the app: the reader's
+// local calendar day. Used both when logging chapter progress and when
+// building the 30-day statistics window, so a chapter added "today" always
+// lands in today's bucket regardless of the server's UTC offset.
+const localDateKey = (date: Date = new Date()): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
 type SortKey = "title" | "type" | "chapter" | "status" | "reread" | "created_at";
 type SortDir = "asc" | "desc";
 
@@ -419,7 +426,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       if (before && typeof patch.chapter === "number") {
         const delta = (data as Entry).chapter - before.chapter;
         if (delta > 0) {
-          void supabase.from("chapter_log").insert({ user_id: userId, entry_id: id, delta });
+          void supabase.from("chapter_log").insert({ user_id: userId, entry_id: id, delta, day: localDateKey() });
         }
       }
       return true;
@@ -1047,16 +1054,14 @@ function StatsDialog({
     (async () => {
       const WINDOW = 30;
       const today = new Date();
-      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const lookback = new Date(today);
-      lookback.setDate(lookback.getDate() - (WINDOW + 7));
-      const lookbackKey = `${lookback.getFullYear()}-${String(lookback.getMonth() + 1).padStart(2, "0")}-${String(lookback.getDate()).padStart(2, "0")}`;
+      start.setDate(start.getDate() - (WINDOW - 1));
+      const startKey = localDateKey(start);
 
       const { data } = await supabase
         .from("chapter_log")
         .select("day, delta")
         .eq("user_id", userId)
-        .gte("day", lookbackKey)
+        .gte("day", startKey)
         .order("day", { ascending: true });
       if (!active) return;
 
@@ -1065,17 +1070,11 @@ function StatsDialog({
         totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
       }
 
-      let endKey = todayKey;
-      for (const key of totals.keys()) if (key > endKey) endKey = key;
-
-      const [ey, em, ed] = endKey.split("-").map(Number);
-      const end = new Date(ey, (em ?? 1) - 1, ed);
-
       const series: { day: string; label: string; chapters: number }[] = [];
       for (let i = WINDOW - 1; i >= 0; i--) {
-        const d = new Date(end);
-        d.setDate(end.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        const key = localDateKey(d);
         series.push({
           day: key,
           label: `${d.getMonth() + 1}/${d.getDate()}`,
@@ -1090,6 +1089,7 @@ function StatsDialog({
   }, [userId]);
 
   const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
+  
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
@@ -1110,10 +1110,21 @@ function StatsDialog({
         <div className="border border-border rounded-md p-3 space-y-2">
           <div className="flex items-baseline justify-between gap-2">
             <div className="text-xs text-muted-foreground">Chapters added — last 30 days</div>
-            <div className="text-sm font-semibold">
-              {daily30Total.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+            <div className="text-sm font-semibold flex items-baseline gap-2">
+              <span>
+                {daily30Total.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+              </span>
+              <span>
+                {daily30Average.toLocaleString(undefined, {
+                  maximumFractionDigits: 1,
+                  minimumFractionDigits: 1,
+                })}{" "}
+                <span className="text-xs font-normal text-muted-foreground">avg/day</span>
+              </span>
             </div>
           </div>
+
+That's it — no database migration needed, since the chapter_log table and its day column already exist. Once you paste these in, save the file, and either run npm run dev locally or push to your connected branch so Lovable picks it up.
           <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={daily} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
