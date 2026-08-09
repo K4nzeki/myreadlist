@@ -1293,7 +1293,7 @@ function SearchDialog({
           className="h-10 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <p className="text-[11px] text-muted-foreground -mt-1">
-          Powered by AniList. Western comics generally aren't in this database — add those manually.
+          Powered by AniList.
         </p>
         <div className="flex-1 overflow-y-auto scroll-touch -mx-1 px-1 space-y-2">
           {status === "loading" && (
