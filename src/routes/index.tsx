@@ -234,8 +234,8 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortKey, setSortKey] = useState<SortKey | null>("title");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
