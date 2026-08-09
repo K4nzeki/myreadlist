@@ -43,6 +43,16 @@ type Entry = {
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
 
+// Single source of truth for "what month is it" across the app: the
+// reader's local calendar month, stored as the first-of-month date. Used
+// when logging a finished title and when building the monthly stats
+// window, so a title finished "this month" always lands in this month's
+// bucket regardless of the server's UTC offset.
+const localMonthKey = (date: Date = new Date()): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+
+const MONTH_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit" });
+
 type SortKey = "title" | "type" | "chapter" | "status" | "reread" | "created_at";
 type SortDir = "asc" | "desc";
 
@@ -416,11 +426,18 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       }
       setEntries((prev) => prev.map((entry) => (entry.id === id ? (data as Entry) : entry)));
       setSyncError(null);
-      if (before && typeof patch.chapter === "number") {
-        const delta = (data as Entry).chapter - before.chapter;
-        if (delta > 0) {
-          void supabase.from("chapter_log").insert({ user_id: userId, entry_id: id, delta });
-        }
+      // Log a completion whenever a title's status changes *into* Finished
+      // (not on every save) — that's the event "titles read this month"
+      // is built from. Logged against the reader's local calendar month so
+      // it lands in the month they actually finished it, regardless of the
+      // server's UTC offset.
+      if (before && typeof patch.status === "string" && before.status !== "Finished" && (data as Entry).status === "Finished") {
+        void supabase.from("completion_log").insert({
+          user_id: userId,
+          entry_id: id,
+          title: (data as Entry).title,
+          month: localMonthKey(),
+        });
       }
       return true;
     },
@@ -1040,56 +1057,55 @@ function StatsDialog({
   onClose: () => void;
 }) {
   const [statsOpen, setStatsOpen] = useState(true);
-  const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
+  const [monthly, setMonthly] = useState<{ month: string; label: string; titles: number }[]>([]);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const WINDOW = 30;
+      const WINDOW = 6; // last 6 months, including the current one
+      // The window always runs from [this month - 5] through [this month],
+      // in the reader's local calendar — matching the same local-month
+      // definition used when a completion is logged in `update()`.
       const today = new Date();
-      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      const lookback = new Date(today);
-      lookback.setDate(lookback.getDate() - (WINDOW + 7));
-      const lookbackKey = `${lookback.getFullYear()}-${String(lookback.getMonth() + 1).padStart(2, "0")}-${String(lookback.getDate()).padStart(2, "0")}`;
+      const start = new Date(today.getFullYear(), today.getMonth() - (WINDOW - 1), 1);
+      const startKey = localMonthKey(start);
 
       const { data } = await supabase
-        .from("chapter_log")
-        .select("day, delta")
+        .from("completion_log")
+        .select("month")
         .eq("user_id", userId)
-        .gte("day", lookbackKey)
-        .order("day", { ascending: true });
+        .gte("month", startKey)
+        .order("month", { ascending: true });
       if (!active) return;
 
+      // Count every row per month rather than overwriting, so multiple
+      // titles finished in the same month add up.
       const totals = new Map<string, number>();
       for (const row of data ?? []) {
-        totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
+        totals.set(row.month, (totals.get(row.month) ?? 0) + 1);
       }
 
-      let endKey = todayKey;
-      for (const key of totals.keys()) if (key > endKey) endKey = key;
-
-      const [ey, em, ed] = endKey.split("-").map(Number);
-      const end = new Date(ey, (em ?? 1) - 1, ed);
-
-      const series: { day: string; label: string; chapters: number }[] = [];
+      const series: { month: string; label: string; titles: number }[] = [];
       for (let i = WINDOW - 1; i >= 0; i--) {
-        const d = new Date(end);
-        d.setDate(end.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = localMonthKey(d);
         series.push({
-          day: key,
-          label: `${d.getMonth() + 1}/${d.getDate()}`,
-          chapters: totals.get(key) ?? 0,
+          month: key,
+          label: MONTH_LABEL.format(d),
+          // Months with no finished titles render as 0, so the chart
+          // always shows a full, continuous 6-month window.
+          titles: totals.get(key) ?? 0,
         });
       }
-      setDaily(series);
+      setMonthly(series);
     })();
     return () => {
       active = false;
     };
   }, [userId]);
 
-  const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
+  const monthlyTotal = monthly.reduce((sum, m) => sum + m.titles, 0);
+  const monthlyAverage = monthly.length ? monthlyTotal / monthly.length : 0;
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
@@ -1106,21 +1122,29 @@ function StatsDialog({
           </button>
         </div>
 
-        {/* Chapters added, day 1-30 */}
+        {/* Titles finished, last 6 months */}
         <div className="border border-border rounded-md p-3 space-y-2">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-xs text-muted-foreground">Chapters added — last 30 days</div>
-            <div className="text-sm font-semibold">
-              {daily30Total.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+            <div className="text-xs text-muted-foreground">Titles finished — last 6 months</div>
+            <div className="text-sm font-semibold flex items-baseline gap-2">
+              <span>
+                {monthlyTotal.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+              </span>
+              <span>
+                {monthlyAverage.toLocaleString(undefined, {
+                  maximumFractionDigits: 1,
+                  minimumFractionDigits: 1,
+                })}{" "}
+                <span className="text-xs font-normal text-muted-foreground">avg/mo</span>
+              </span>
             </div>
           </div>
           <div className="h-40 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={daily} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <BarChart data={monthly} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis
                   dataKey="label"
-                  interval={4}
                   tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
                   axisLine={false}
                   tickLine={false}
@@ -1128,9 +1152,6 @@ function StatsDialog({
                 <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
                 <Tooltip
                   cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-                  labelFormatter={(label: string, payload) =>
-                    `${label}${payload?.[0]?.payload?.day ? ` · ${payload[0].payload.day}` : ""}`
-                  }
                   contentStyle={{
                     background: "var(--card)",
                     border: "1px solid var(--border)",
@@ -1139,12 +1160,12 @@ function StatsDialog({
                     color: "var(--foreground)",
                   }}
                 />
-                <Bar dataKey="chapters" name="Chapters" fill="var(--primary)" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="titles" name="Titles finished" fill="var(--primary)" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Oldest on the left, latest on the right. Days with no reading show as 0.
+            Oldest on the left, latest on the right. Months with no finishes show as 0.
           </p>
         </div>
 
