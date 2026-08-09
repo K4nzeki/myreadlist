@@ -234,7 +234,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey | null>("title");
+  const [sortKey, setSortKey] = useState<SortKey | null>("null");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -259,7 +259,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       .from("entries")
       .select("id, title, type, chapter, status, reread, created_at")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: true });
     if (error) {
       reportDatabaseError("Loading your list", error);
     } else if (data) {
