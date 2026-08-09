@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
@@ -787,6 +787,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <BarChart3 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Statistics</span>
             </button>
+            <Link
+              to="/users"
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            >
+              <User className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Browse Users</span>
+            </Link>
             <button
               onClick={() => supabase.auth.signOut()}
               className="h-8 px-3 rounded-md border border-border hover:bg-muted"
