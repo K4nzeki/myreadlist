@@ -350,14 +350,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    const list = !q
-      ? entries
-      : entries.filter(
-          (e) =>
-            e.title.toLowerCase().includes(q) ||
-            e.type.toLowerCase().includes(q) ||
-            e.status.toLowerCase().includes(q),
-        );
+    const list = entries.filter((e) => {
+      if (typeFilter && e.type !== typeFilter) return false;
+      if (statusFilter && e.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        e.title.toLowerCase().includes(q) ||
+        e.type.toLowerCase().includes(q) ||
+        e.status.toLowerCase().includes(q)
+      );
+    });
     if (!sortKey) return list;
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
@@ -367,7 +369,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       if (sortKey === "created_at") return String(av) < String(bv) ? -dir : String(av) > String(bv) ? dir : 0;
       return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
     });
-  }, [entries, filter, sortKey, sortDir]);
+  }, [entries, filter, typeFilter, statusFilter, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -660,6 +662,32 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <option value="title:desc">Title Z → A</option>
               <option value="chapter:desc">Chapter High → Low</option>
               <option value="chapter:asc">Chapter Low → High</option>
+            </select>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
+              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
+              title="Filter by type"
+            >
+              <option value="">All types</option>
+              {TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
+              title="Filter by status"
+            >
+              <option value="">All statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
             <button
               onClick={addBlank}
