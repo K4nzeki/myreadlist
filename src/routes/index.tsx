@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { Eye, EyeOff, Menu, User, X } from "lucide-react";
+import { BarChart3, Eye, EyeOff, Menu, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -238,6 +238,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
+  const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
   const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -347,14 +350,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    const list = !q
-      ? entries
-      : entries.filter(
-          (e) =>
-            e.title.toLowerCase().includes(q) ||
-            e.type.toLowerCase().includes(q) ||
-            e.status.toLowerCase().includes(q),
-        );
+    const list = entries.filter((e) => {
+      if (typeFilter && e.type !== typeFilter) return false;
+      if (statusFilter && e.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        e.title.toLowerCase().includes(q) ||
+        e.type.toLowerCase().includes(q) ||
+        e.status.toLowerCase().includes(q)
+      );
+    });
     if (!sortKey) return list;
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
@@ -364,7 +369,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       if (sortKey === "created_at") return String(av) < String(bv) ? -dir : String(av) > String(bv) ? dir : 0;
       return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
     });
-  }, [entries, filter, sortKey, sortDir]);
+  }, [entries, filter, typeFilter, statusFilter, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -610,6 +615,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               Profile
             </button>
             <button
+              onClick={() => setStatsDialogOpen(true)}
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Statistics</span>
+            </button>
+            <button
               onClick={() => supabase.auth.signOut()}
               className="h-8 px-3 rounded-md border border-border hover:bg-muted"
             >
@@ -620,7 +632,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       </header>
 
       {profileOpen && (
-        <ProfileDialog userId={userId} email={email} stats={stats} onClose={() => setProfileOpen(false)} />
+        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+      )}
+
+      {statsDialogOpen && (
+        <StatsDialog userId={userId} stats={stats} onClose={() => setStatsDialogOpen(false)} />
       )}
 
 
@@ -628,7 +644,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       <main className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
-          <div className="flex items-center gap-2 px-3 sm:px-4 py-2 border-b border-border">
+          <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 border-b border-border">
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
@@ -646,6 +662,32 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <option value="title:desc">Title Z → A</option>
               <option value="chapter:desc">Chapter High → Low</option>
               <option value="chapter:asc">Chapter Low → High</option>
+            </select>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
+              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
+              title="Filter by type"
+            >
+              <option value="">All types</option>
+              {TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
+              title="Filter by status"
+            >
+              <option value="">All statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
             <button
               onClick={addBlank}
@@ -988,24 +1030,15 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
   );
 }
 
-function ProfileDialog({
+function StatsDialog({
   userId,
-  email,
   stats,
   onClose,
 }: {
   userId: string;
-  email: string;
   stats: { chapters: number; total: number; rereads: number; types: Record<EntryType, number>; statuses: Record<EntryStatus, number>; matrix: Record<EntryType, Record<EntryStatus, number>> };
   onClose: () => void;
 }) {
-  const [username, setUsername] = useState("");
-  const [newEmail, setNewEmail] = useState(email);
-  const [password, setPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [statsOpen, setStatsOpen] = useState(true);
   const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
 
@@ -1015,7 +1048,6 @@ function ProfileDialog({
       const WINDOW = 30;
       const today = new Date();
       const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      // Fetch a little wider than the window so we can anchor on the latest logged day.
       const lookback = new Date(today);
       lookback.setDate(lookback.getDate() - (WINDOW + 7));
       const lookbackKey = `${lookback.getFullYear()}-${String(lookback.getMonth() + 1).padStart(2, "0")}-${String(lookback.getDate()).padStart(2, "0")}`;
@@ -1033,7 +1065,6 @@ function ProfileDialog({
         totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
       }
 
-      // End date anchors on the most recent date with data, but never before today.
       let endKey = todayKey;
       for (const key of totals.keys()) if (key > endKey) endKey = key;
 
@@ -1060,117 +1091,18 @@ function ProfileDialog({
 
   const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", userId)
-        .maybeSingle();
-      if (!active) return;
-      setUsername(data?.username ?? "");
-      setLoading(false);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [userId]);
-
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setMsg(null);
-    const notes: string[] = [];
-    try {
-      const uname = username.trim();
-      if (uname.length > 40) throw new Error("Username must be 40 characters or fewer.");
-      const { error: pErr } = await supabase
-        .from("profiles")
-        .upsert({ id: userId, username: uname || null }, { onConflict: "id" });
-      if (pErr)
-        throw new Error(
-          pErr.code === "23505" ? "That username is already taken." : pErr.message,
-        );
-      notes.push("Profile saved.");
-
-      const trimmedEmail = newEmail.trim();
-      if (trimmedEmail && trimmedEmail !== email) {
-        const { error } = await supabase.auth.updateUser(
-          { email: trimmedEmail },
-          { emailRedirectTo: window.location.origin },
-        );
-        if (error) throw error;
-        notes.push("Check your new email to confirm the change.");
-      }
-
-      if (password) {
-        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
-        setPassword("");
-        notes.push("Password updated.");
-      }
-      setMsg({ text: notes.join(" ") });
-    } catch (err) {
-      setMsg({ text: (err as Error).message, error: true });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
-      <form
-        onSubmit={save}
-        className="w-full max-w-sm flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
-      >
+      <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto scroll-touch flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Your profile</h2>
+          <h2 className="text-sm font-semibold">Statistics</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close profile"
-            className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+            aria-label="Close"
+            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <label className="text-xs text-muted-foreground">Username</label>
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          disabled={loading}
-          maxLength={40}
-          placeholder={loading ? "Loading…" : "your name"}
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-
-        <label className="text-xs text-muted-foreground">Email</label>
-        <input
-          type="email"
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.target.value)}
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-
-        <label className="text-xs text-muted-foreground">New password</label>
-        <div className="relative">
-          <input
-            type={showPw ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Leave blank to keep current"
-            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPw((v) => !v)}
-            aria-label={showPw ? "Hide password" : "Show password"}
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
-          >
-            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
 
@@ -1296,6 +1228,142 @@ function ProfileDialog({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileDialog({
+  userId,
+  email,
+  onClose,
+}: {
+  userId: string;
+  email: string;
+  onClose: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [newEmail, setNewEmail] = useState(email);
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
+      if (!active) return;
+      setUsername(data?.username ?? "");
+      setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    const notes: string[] = [];
+    try {
+      const uname = username.trim();
+      if (uname.length > 40) throw new Error("Username must be 40 characters or fewer.");
+      const { error: pErr } = await supabase
+        .from("profiles")
+        .upsert({ id: userId, username: uname || null }, { onConflict: "id" });
+      if (pErr)
+        throw new Error(
+          pErr.code === "23505" ? "That username is already taken." : pErr.message,
+        );
+      notes.push("Profile saved.");
+
+      const trimmedEmail = newEmail.trim();
+      if (trimmedEmail && trimmedEmail !== email) {
+        const { error } = await supabase.auth.updateUser(
+          { email: trimmedEmail },
+          { emailRedirectTo: window.location.origin },
+        );
+        if (error) throw error;
+        notes.push("Check your new email to confirm the change.");
+      }
+
+      if (password) {
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        setPassword("");
+        notes.push("Password updated.");
+      }
+      setMsg({ text: notes.join(" ") });
+    } catch (err) {
+      setMsg({ text: (err as Error).message, error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+      <form
+        onSubmit={save}
+        className="w-full max-w-sm flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Your profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close profile"
+            className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <label className="text-xs text-muted-foreground">Username</label>
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          disabled={loading}
+          maxLength={40}
+          placeholder={loading ? "Loading…" : "your name"}
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <label className="text-xs text-muted-foreground">Email</label>
+        <input
+          type="email"
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+
+        <label className="text-xs text-muted-foreground">New password</label>
+        <div className="relative">
+          <input
+            type={showPw ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Leave blank to keep current"
+            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw((v) => !v)}
+            aria-label={showPw ? "Hide password" : "Show password"}
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
+          >
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+
 
         <button
           type="submit"
