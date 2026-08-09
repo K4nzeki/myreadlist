@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { BarChart3, Eye, EyeOff, Menu, User, X } from "lucide-react";
+import { BarChart3, Eye, EyeOff, Menu, Search, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -38,7 +38,14 @@ type Entry = {
   status: EntryStatus;
   reread: number;
   created_at?: string;
+  cover_url?: string | null;
+  author?: string | null;
+  total_chapters?: number | null;
 };
+
+// Every entries query below selects this exact column set — kept as one
+// constant so the row shape always matches the Entry type above.
+const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters";
 
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
 const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
@@ -52,6 +59,86 @@ const localMonthKey = (date: Date = new Date()): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
 
 const MONTH_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit" });
+
+type SearchResult = {
+  id: number;
+  title: string;
+  type: EntryType;
+  author: string | null;
+  coverUrl: string | null;
+  totalChapters: number | null;
+  status: string | null;
+};
+
+// AniList's public GraphQL API. No key required, CORS-enabled for browser
+// use. It covers Manga/Manhwa/Manhua well (it's a manga/anime database) but
+// has essentially no Western "Comic" catalog — Comic entries will mostly
+// need to stay manual.
+const ANILIST_ENDPOINT = "https://graphql.anilist.co";
+const ANILIST_QUERY = `
+  query ($search: String) {
+    Page(page: 1, perPage: 8) {
+      media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
+        id
+        countryOfOrigin
+        chapters
+        status
+        title { romaji english }
+        coverImage { medium }
+        staff(sort: RELEVANCE, perPage: 1) {
+          edges { node { name { full } } }
+        }
+      }
+    }
+  }
+`;
+
+function guessTypeFromCountry(country: string | null | undefined): EntryType {
+  switch (country) {
+    case "KR":
+      return "Manhwa";
+    case "CN":
+    case "TW":
+      return "Manhua";
+    default:
+      return "Manga";
+  }
+}
+
+async function searchAniList(query: string, signal?: AbortSignal): Promise<SearchResult[]> {
+  const res = await fetch(ANILIST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ query: ANILIST_QUERY, variables: { search: query } }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`Search failed (${res.status})`);
+  const json = (await res.json()) as {
+    data?: {
+      Page?: {
+        media?: Array<{
+          id: number;
+          countryOfOrigin?: string | null;
+          chapters?: number | null;
+          status?: string | null;
+          title?: { romaji?: string | null; english?: string | null };
+          coverImage?: { medium?: string | null };
+          staff?: { edges?: Array<{ node?: { name?: { full?: string | null } } }> };
+        }>;
+      };
+    };
+  };
+  const media = json.data?.Page?.media ?? [];
+  return media.map((m) => ({
+    id: m.id,
+    title: m.title?.english || m.title?.romaji || "Untitled",
+    type: guessTypeFromCountry(m.countryOfOrigin),
+    author: m.staff?.edges?.[0]?.node?.name?.full ?? null,
+    coverUrl: m.coverImage?.medium ?? null,
+    totalChapters: typeof m.chapters === "number" ? m.chapters : null,
+    status: m.status ?? null,
+  }));
+}
 
 type SortKey = "title" | "type" | "chapter" | "status" | "reread" | "created_at";
 type SortDir = "asc" | "desc";
@@ -119,14 +206,42 @@ function Tracker() {
   }, []);
 
   if (!authReady) {
-    return (
-      <div className="h-screen w-screen grid place-items-center bg-background text-muted-foreground text-sm">
-        Loading…
-      </div>
-    );
+    return <SplashScreen />;
   }
   if (!session) return <AuthPanel />;
   return <TrackerApp userId={session.user.id} email={session.user.email ?? ""} />;
+}
+
+function SplashScreen() {
+  return (
+    <div className="h-screen w-screen grid place-items-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-10 w-10 rounded-lg border-2 border-primary border-t-transparent animate-spin" />
+        <span className="text-sm font-semibold text-primary tracking-tight">Panels</span>
+      </div>
+    </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="h-[100dvh] w-full bg-background text-foreground flex flex-col safe-t animate-pulse">
+      <div className="border-b border-border px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-3 sm:gap-6 flex-wrap">
+        <div className="h-6 w-24 rounded bg-muted" />
+        <div className="h-8 w-px bg-border hidden sm:block" />
+        <div className="flex gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-8 w-16 rounded bg-muted" />
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden px-3 sm:px-6 py-3 space-y-2">
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="h-12 rounded-md bg-muted/70" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function AuthPanel() {
@@ -249,6 +364,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -267,7 +383,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const reload = useCallback(async () => {
     const { data, error } = await supabase
       .from("entries")
-      .select("id, title, type, chapter, status, reread, created_at")
+      .select(ENTRY_COLUMNS)
       .eq("user_id", userId)
       .order("created_at", { ascending: true });
     if (error) {
@@ -414,7 +530,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         .update(patch)
         .eq("id", id)
         .eq("user_id", userId)
-        .select("id, title, type, chapter, status, reread, created_at")
+        .select(ENTRY_COLUMNS)
         .maybeSingle();
       if (error) {
         reportDatabaseError("Saving your change", error);
@@ -464,6 +580,43 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     setSyncError(null);
     toast.success("Title deleted");
   };
+  const addFromSearch = async (result: SearchResult) => {
+    const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
+    const title = result.title.trim();
+    if (!title) return false;
+    if (taken.has(title.toLowerCase())) {
+      toast.error(`"${title}" is already in your list`);
+      return false;
+    }
+    const row = {
+      user_id: userId,
+      title,
+      type: result.type,
+      chapter: 0,
+      status: "Ongoing",
+      reread: 0,
+      cover_url: result.coverUrl,
+      author: result.author,
+      total_chapters: result.totalChapters,
+    };
+    const { data, error } = await supabase
+      .from("entries")
+      .insert(row)
+      .select(ENTRY_COLUMNS)
+      .single();
+    if (error) {
+      reportDatabaseError("Adding a title", error);
+      return false;
+    }
+    if (data) {
+      setSyncError(null);
+      setEntries((prev) => [data as Entry, ...prev]);
+      toast.success(`"${title}" added`);
+      return true;
+    }
+    return false;
+  };
+
   const addBlank = async () => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
     let title = "New title";
@@ -473,7 +626,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     const { data, error } = await supabase
       .from("entries")
       .insert(row)
-      .select("id, title, type, chapter, status, reread, created_at")
+      .select(ENTRY_COLUMNS)
       .single();
     if (error) {
       reportDatabaseError("Adding a title", error);
@@ -511,7 +664,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       const { data, error } = await supabase
         .from("entries")
         .insert(rows)
-        .select("id, title, type, chapter, status, reread, created_at");
+        .select(ENTRY_COLUMNS);
       if (error) {
         errors.push(error.message);
         reportDatabaseError("Importing titles", error);
@@ -558,7 +711,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         const { data, error } = await supabase
           .from("entries")
           .insert(rows)
-          .select("id, title, type, chapter, status, reread, created_at");
+          .select(ENTRY_COLUMNS);
         if (error) reportDatabaseError("Loading titles", error);
         else if (data) {
           setEntries((prev) => [...(data as Entry[]), ...prev]);
@@ -571,11 +724,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   };
 
   if (loading) {
-    return (
-      <div className="h-[100dvh] w-full grid place-items-center bg-background text-muted-foreground text-sm">
-        Loading your list…
-      </div>
-    );
+    return <ListSkeleton />;
   }
 
   return (
@@ -656,6 +805,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         <StatsDialog userId={userId} stats={stats} onClose={() => setStatsDialogOpen(false)} />
       )}
 
+      {searchDialogOpen && (
+        <SearchDialog onAdd={addFromSearch} onClose={() => setSearchDialogOpen(false)} />
+      )}
+
 
       {/* Main grid */}
       <main className="flex-1 min-h-0 flex relative">
@@ -707,6 +860,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               ))}
             </select>
             <button
+              onClick={() => setSearchDialogOpen(true)}
+              className="h-9 px-3 rounded-md border border-border text-sm font-medium hover:bg-muted shrink-0 inline-flex items-center gap-1.5"
+              title="Search & add by title"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Search</span>
+            </button>
+            <button
               onClick={addBlank}
               className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 shrink-0"
             >
@@ -727,6 +888,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               {filtered.map((e) => (
                 <li key={e.id} className={`px-3 py-3 ${statusRowBorder(e.status)}`}>
                   <div className="flex items-start gap-2">
+                    {e.cover_url && (
+                      <img
+                        src={e.cover_url}
+                        alt=""
+                        className="h-12 w-9 shrink-0 rounded object-cover bg-muted mt-0.5"
+                      />
+                    )}
                     <input
                       key={`m-${e.id}-${e.title}`}
                       defaultValue={e.title}
@@ -753,6 +921,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       ×
                     </button>
                   </div>
+                  {!!e.total_chapters && (
+                    <div className="mt-2">
+                      <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                    </div>
+                  )}
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <select
                       value={e.type}
@@ -842,22 +1015,38 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     className={`border-t border-border hover:bg-muted/40 group ${statusRowBorder(e.status)}`}
                   >
                     <td className="px-4 py-1.5">
-                      <input
-                         key={`${e.id}-${e.title}`}
-                         defaultValue={e.title}
-                         onBlur={(ev) => {
-                           const title = ev.target.value.trim();
-                           if (!title) {
-                             ev.target.value = e.title;
-                             toast.error("A title cannot be empty");
-                           } else if (title !== e.title) {
-                             void update(e.id, { title }).then((saved) => {
-                               if (!saved) ev.target.value = e.title;
-                             });
-                           }
-                         }}
-                        className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
-                      />
+                      <div className="flex items-center gap-2">
+                        {e.cover_url && (
+                          <img
+                            src={e.cover_url}
+                            alt=""
+                            className="h-8 w-6 shrink-0 rounded object-cover bg-muted"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <input
+                             key={`${e.id}-${e.title}`}
+                             defaultValue={e.title}
+                             onBlur={(ev) => {
+                               const title = ev.target.value.trim();
+                               if (!title) {
+                                 ev.target.value = e.title;
+                                 toast.error("A title cannot be empty");
+                               } else if (title !== e.title) {
+                                 void update(e.id, { title }).then((saved) => {
+                                   if (!saved) ev.target.value = e.title;
+                                 });
+                               }
+                             }}
+                            className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
+                          />
+                          {!!e.total_chapters && (
+                            <div className="px-2">
+                              <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-2 py-1.5">
                       <select
@@ -1026,6 +1215,141 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           </div>
         </aside>
       </main>
+    </div>
+  );
+}
+
+function SearchDialog({
+  onAdd,
+  onClose,
+}: {
+  onAdd: (result: SearchResult) => Promise<boolean>;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [addingId, setAddingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setStatus("idle");
+      return;
+    }
+    const controller = new AbortController();
+    setStatus("loading");
+    const timer = setTimeout(() => {
+      searchAniList(q, controller.signal)
+        .then((r) => {
+          setResults(r);
+          setStatus("idle");
+        })
+        .catch((err) => {
+          if ((err as Error).name === "AbortError") return;
+          setStatus("error");
+        });
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  const handleAdd = async (result: SearchResult) => {
+    setAddingId(result.id);
+    const ok = await onAdd(result);
+    setAddingId(null);
+    if (ok) onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+      <div className="w-full max-w-md max-h-[85dvh] flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Search & add a title</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <input
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search manga, manhwa, manhua…"
+          className="h-10 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+        />
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Powered by AniList. Western comics generally aren't in this database — add those manually.
+        </p>
+        <div className="flex-1 overflow-y-auto scroll-touch -mx-1 px-1 space-y-2">
+          {status === "loading" && (
+            <p className="text-xs text-muted-foreground px-1 py-6 text-center">Searching…</p>
+          )}
+          {status === "error" && (
+            <p className="text-xs text-destructive px-1 py-6 text-center">
+              Couldn't reach the search service. Try again in a moment.
+            </p>
+          )}
+          {status === "idle" && query.trim().length >= 2 && results.length === 0 && (
+            <p className="text-xs text-muted-foreground px-1 py-6 text-center">No matches.</p>
+          )}
+          {results.map((r) => (
+            <div
+              key={r.id}
+              className="flex items-center gap-3 rounded-md border border-border p-2 hover:bg-muted/40"
+            >
+              {r.coverUrl ? (
+                <img
+                  src={r.coverUrl}
+                  alt=""
+                  className="h-14 w-10 shrink-0 rounded object-cover bg-muted"
+                />
+              ) : (
+                <div className="h-14 w-10 shrink-0 rounded bg-muted" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium truncate">{r.title}</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {r.type}
+                  {r.author ? ` · ${r.author}` : ""}
+                  {typeof r.totalChapters === "number" ? ` · ${r.totalChapters} ch.` : ""}
+                </div>
+              </div>
+              <button
+                onClick={() => void handleAdd(r)}
+                disabled={addingId === r.id}
+                className="shrink-0 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {addingId === r.id ? "Adding…" : "Add"}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChapterProgress({ chapter, total }: { chapter: number; total: number }) {
+  const pct = total > 0 ? Math.min(100, Math.round((chapter / total) * 100)) : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-[width]"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+        {chapter}/{total} · {pct}%
+      </span>
     </div>
   );
 }
