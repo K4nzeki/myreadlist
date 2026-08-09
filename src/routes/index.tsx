@@ -988,6 +988,209 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
   );
 }
 
+function StatsDialog({
+  userId,
+  stats,
+  onClose,
+}: {
+  userId: string;
+  stats: { chapters: number; total: number; rereads: number; types: Record<EntryType, number>; statuses: Record<EntryStatus, number>; matrix: Record<EntryType, Record<EntryStatus, number>> };
+  onClose: () => void;
+}) {
+  const [statsOpen, setStatsOpen] = useState(true);
+  const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const WINDOW = 30;
+      const today = new Date();
+      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const lookback = new Date(today);
+      lookback.setDate(lookback.getDate() - (WINDOW + 7));
+      const lookbackKey = `${lookback.getFullYear()}-${String(lookback.getMonth() + 1).padStart(2, "0")}-${String(lookback.getDate()).padStart(2, "0")}`;
+
+      const { data } = await supabase
+        .from("chapter_log")
+        .select("day, delta")
+        .eq("user_id", userId)
+        .gte("day", lookbackKey)
+        .order("day", { ascending: true });
+      if (!active) return;
+
+      const totals = new Map<string, number>();
+      for (const row of data ?? []) {
+        totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
+      }
+
+      let endKey = todayKey;
+      for (const key of totals.keys()) if (key > endKey) endKey = key;
+
+      const [ey, em, ed] = endKey.split("-").map(Number);
+      const end = new Date(ey, (em ?? 1) - 1, ed);
+
+      const series: { day: string; label: string; chapters: number }[] = [];
+      for (let i = WINDOW - 1; i >= 0; i--) {
+        const d = new Date(end);
+        d.setDate(end.getDate() - i);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        series.push({
+          day: key,
+          label: `${d.getMonth() + 1}/${d.getDate()}`,
+          chapters: totals.get(key) ?? 0,
+        });
+      }
+      setDaily(series);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+      <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto scroll-touch flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Statistics</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Chapters added, day 1-30 */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-xs text-muted-foreground">Chapters added — last 30 days</div>
+            <div className="text-sm font-semibold">
+              {daily30Total.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
+            </div>
+          </div>
+          <div className="h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={daily} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis
+                  dataKey="label"
+                  interval={4}
+                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  labelFormatter={(label: string, payload) =>
+                    `${label}${payload?.[0]?.payload?.day ? ` · ${payload[0].payload.day}` : ""}`
+                  }
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                  }}
+                />
+                <Bar dataKey="chapters" name="Chapters" fill="var(--primary)" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Oldest on the left, latest on the right. Days with no reading show as 0.
+          </p>
+        </div>
+
+        {/* Status-by-type chart */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <div className="text-xs text-muted-foreground">Titles by type & status</div>
+          <div className="h-56 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={TYPES.map((t) => ({ type: t, ...stats.matrix[t] }))}
+                margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="type" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                {STATUSES.map((s) => (
+                  <Bar key={s} dataKey={s} stackId="a" fill={STATUS_FILL[s]} radius={[2, 2, 0, 0]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Status-by-type breakdown */}
+        <div className="border border-border rounded-md p-3 space-y-2">
+          <button
+            type="button"
+            onClick={() => setStatsOpen((v) => !v)}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >
+            {statsOpen ? "▾" : "▸"} Status by type
+          </button>
+          {statsOpen && (
+            <div className="overflow-x-auto">
+              <table className="text-xs min-w-[360px] w-full">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-medium px-2 py-1">Type</th>
+                    {STATUSES.map((s) => (
+                      <th key={s} className="text-right font-medium px-2 py-1">
+                        {s}
+                      </th>
+                    ))}
+                    <th className="text-right font-medium px-2 py-1">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {TYPES.map((t) => (
+                    <tr key={t} className="border-t border-border">
+                      <td className="px-2 py-1 font-medium">{t}</td>
+                      {STATUSES.map((s) => (
+                        <td key={s} className="px-2 py-1 text-right tabular-nums">
+                          {stats.matrix[t][s]}
+                        </td>
+                      ))}
+                      <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-border text-muted-foreground">
+                    <td className="px-2 py-1 font-medium">All</td>
+                    {STATUSES.map((s) => (
+                      <td key={s} className="px-2 py-1 text-right tabular-nums">
+                        {stats.statuses[s]}
+                      </td>
+                    ))}
+                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileDialog({
   userId,
   email,
