@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { Eye, EyeOff, Menu, User, X } from "lucide-react";
+import { BarChart3, Eye, EyeOff, Menu, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -238,6 +238,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
+  const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
   const [syncError, setSyncError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -610,6 +613,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               Profile
             </button>
             <button
+              onClick={() => setStatsDialogOpen(true)}
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Statistics</span>
+            </button>
+            <button
               onClick={() => supabase.auth.signOut()}
               className="h-8 px-3 rounded-md border border-border hover:bg-muted"
             >
@@ -620,7 +630,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       </header>
 
       {profileOpen && (
-        <ProfileDialog userId={userId} email={email} stats={stats} onClose={() => setProfileOpen(false)} />
+        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+      )}
+
+      {statsDialogOpen && (
+        <StatsDialog userId={userId} stats={stats} onClose={() => setStatsDialogOpen(false)} />
       )}
 
 
