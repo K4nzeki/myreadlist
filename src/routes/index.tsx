@@ -657,7 +657,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[9rem]"
               title="Sort"
             >
-              <option value="">Sort</option>
+              <option value="">Latest Added</option>
               <option value="title:asc">Title A → Z</option>
               <option value="title:desc">Title Z → A</option>
               <option value="chapter:desc">Chapter High → Low</option>
