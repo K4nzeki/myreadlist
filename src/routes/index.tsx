@@ -669,7 +669,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
               title="Filter by type"
             >
-              <option value="">All types</option>
+              <option value="">Types</option>
               {TYPES.map((t) => (
                 <option key={t} value={t}>
                   {t}
@@ -682,7 +682,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
               title="Filter by status"
             >
-              <option value="">All statuses</option>
+              <option value="">Status</option>
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {s}
