@@ -991,12 +991,10 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
 function ProfileDialog({
   userId,
   email,
-  stats,
   onClose,
 }: {
   userId: string;
   email: string;
-  stats: { chapters: number; total: number; rereads: number; types: Record<EntryType, number>; statuses: Record<EntryStatus, number>; matrix: Record<EntryType, Record<EntryStatus, number>> };
   onClose: () => void;
 }) {
   const [username, setUsername] = useState("");
@@ -1006,59 +1004,6 @@ function ProfileDialog({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
-  const [statsOpen, setStatsOpen] = useState(true);
-  const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const WINDOW = 30;
-      const today = new Date();
-      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-      // Fetch a little wider than the window so we can anchor on the latest logged day.
-      const lookback = new Date(today);
-      lookback.setDate(lookback.getDate() - (WINDOW + 7));
-      const lookbackKey = `${lookback.getFullYear()}-${String(lookback.getMonth() + 1).padStart(2, "0")}-${String(lookback.getDate()).padStart(2, "0")}`;
-
-      const { data } = await supabase
-        .from("chapter_log")
-        .select("day, delta")
-        .eq("user_id", userId)
-        .gte("day", lookbackKey)
-        .order("day", { ascending: true });
-      if (!active) return;
-
-      const totals = new Map<string, number>();
-      for (const row of data ?? []) {
-        totals.set(row.day, (totals.get(row.day) ?? 0) + row.delta);
-      }
-
-      // End date anchors on the most recent date with data, but never before today.
-      let endKey = todayKey;
-      for (const key of totals.keys()) if (key > endKey) endKey = key;
-
-      const [ey, em, ed] = endKey.split("-").map(Number);
-      const end = new Date(ey, (em ?? 1) - 1, ed);
-
-      const series: { day: string; label: string; chapters: number }[] = [];
-      for (let i = WINDOW - 1; i >= 0; i--) {
-        const d = new Date(end);
-        d.setDate(end.getDate() - i);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        series.push({
-          day: key,
-          label: `${d.getMonth() + 1}/${d.getDate()}`,
-          chapters: totals.get(key) ?? 0,
-        });
-      }
-      setDaily(series);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [userId]);
-
-  const daily30Total = daily.reduce((sum, d) => sum + d.chapters, 0);
 
   useEffect(() => {
     let active = true;
