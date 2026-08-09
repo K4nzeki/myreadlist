@@ -642,8 +642,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               title="Sort"
             >
               <option value="">Sort</option>
-              <option value="created_at:desc">Latest added</option>
-              <option value="created_at:asc">Oldest added</option>
               <option value="title:asc">Title A → Z</option>
               <option value="title:desc">Title Z → A</option>
               <option value="chapter:desc">Chapter High → Low</option>
