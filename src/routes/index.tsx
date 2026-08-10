@@ -5,6 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import { BarChart3, Eye, EyeOff, Menu, Search, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 const STATUS_FILL: Record<string, string> = {
   Ongoing: "var(--ongoing)",
   Dropped: "var(--dropped)",
@@ -59,14 +60,25 @@ const localMonthKey = (date: Date = new Date()): string =>
 
 const MONTH_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit" });
 
+// Time-of-day greeting for the header, based on the reader's local clock.
+function timeGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 5) return "Good early morning";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  if (h < 21) return "Good evening";
+  return "Good night";
+}
+
 type SearchResult = {
-  id: number;
+  id: number | string;
   title: string;
   type: EntryType;
   author: string | null;
   coverUrl: string | null;
   totalChapters: number | null;
   status: string | null;
+  source?: string;
 };
 
 // AniList's public GraphQL API. No key required, CORS-enabled for browser
@@ -136,6 +148,7 @@ async function searchAniList(query: string, signal?: AbortSignal): Promise<Searc
     coverUrl: m.coverImage?.medium ?? null,
     totalChapters: typeof m.chapters === "number" ? m.chapters : null,
     status: m.status ?? null,
+    source: "AniList",
   }));
 }
 
@@ -157,6 +170,35 @@ async function findAniListMatch(title: string): Promise<SearchResult | null> {
   }
 }
 
+function pickBestMatch<T extends { title: string }>(title: string, results: T[]): T | null {
+  if (!results.length) return null;
+  const exact = results.find((r) => r.title.trim().toLowerCase() === title.trim().toLowerCase());
+  return exact ?? results[0];
+}
+
+// Same as findAniListMatch, but falls back to MyAnimeList then Kitsu when
+// AniList has no hit — mainly useful for Comic entries and other titles
+// outside AniList's manga/manhwa/manhua-focused catalog. Any provider
+// failing (network error, no results) just falls through to the next one;
+// returns null only if every provider comes up empty.
+async function findTrackerMatch(title: string): Promise<SearchResult | null> {
+  const anilist = await findAniListMatch(title);
+  if (anilist) return anilist;
+  try {
+    const mal = pickBestMatch(title, await searchMAL(title));
+    if (mal) return mal;
+  } catch {
+    /* fall through to the next provider */
+  }
+  try {
+    const kitsu = pickBestMatch(title, await searchKitsu(title));
+    if (kitsu) return kitsu;
+  } catch {
+    /* no matches anywhere */
+  }
+  return null;
+}
+
 const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
 // Runs findAniListMatch over a list with limited concurrency + a small
@@ -173,7 +215,7 @@ async function enrichWithAniList<T extends { title: string }>(
     while (cursor < items.length) {
       const idx = cursor++;
       const item = items[idx];
-      const match = await findAniListMatch(item.title);
+      const match = await findTrackerMatch(item.title);
       out[idx] = match ? merge(item, match) : item;
       await sleep(150);
     }
@@ -422,6 +464,21 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     toast.error(message);
   }, []);
 
+  // Display name for the header greeting. Falls back to the local part of
+  // the email (never the full address) if no username has been set yet.
+  const [username, setUsername] = useState<string | null>(null);
+  const loadUsername = useCallback(async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    setUsername(data?.username || email.split("@")[0] || "Reader");
+  }, [userId, email]);
+  useEffect(() => {
+    void loadUsername();
+  }, [loadUsername]);
+
   const reload = useCallback(async () => {
     const { data, error } = await supabase
       .from("entries")
@@ -471,20 +528,19 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             if (oldId) setEntries((prev) => prev.filter((e) => e.id !== oldId));
             return;
           }
+          // NOTE: this used to rebuild a "clean" Entry with only a handful of
+          // fields (id/title/type/chapter/status/reread), dropping
+          // cover_url/author/total_chapters/created_at. Since Postgres
+          // realtime UPDATE payloads include the full row, that reconstruction
+          // was wiping out the cover art/author/chapter-total on every single
+          // edit (chapter +1, status change, etc.) as soon as the echo of your
+          // own write came back over the socket. Just use the row as-is.
           const row = payload.new as Entry;
           setEntries((prev) => {
             const idx = prev.findIndex((e) => e.id === row.id);
-            const clean: Entry = {
-              id: row.id,
-              title: row.title,
-              type: row.type,
-              chapter: row.chapter,
-              status: row.status,
-              reread: row.reread,
-            };
-            if (idx === -1) return [clean, ...prev];
+            if (idx === -1) return [row, ...prev];
             const next = [...prev];
-            next[idx] = clean;
+            next[idx] = row;
             return next;
           });
         },
@@ -642,7 +698,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       // Only auto-fill when this entry has no cover yet — never clobber
       // art the user picked via Search or already has from an import.
       if (!entry.cover_url) {
-        const match = await findAniListMatch(title);
+        const match = await findTrackerMatch(title);
         if (match) {
           void update(entry.id, {
             type: match.type,
@@ -745,7 +801,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         if (ok) found++;
       }
       toast.success(
-        found ? `Added covers for ${found} of ${missing.length} titles` : "No AniList matches found",
+        found ? `Added covers for ${found} of ${missing.length} titles` : "No matches found on AniList, MyAnimeList, or Kitsu",
       );
     } finally {
       setBackfilling(false);
@@ -899,7 +955,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           </div>
           <div className="h-8 w-px bg-border hidden sm:block" />
           <div className="flex items-center gap-2 text-xs ml-auto lg:ml-0">
-            <span className="text-muted-foreground hidden sm:inline">{email}</span>
+            <span className="text-muted-foreground hidden sm:inline">
+              {timeGreeting()}
+              {username ? `, ${username}` : ""}
+            </span>
             <button
               onClick={() => setProfileOpen(true)}
               className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
@@ -943,7 +1002,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       </header>
 
       {profileOpen && (
-        <ProfileDialog userId={userId} email={email} onClose={() => setProfileOpen(false)} />
+        <ProfileDialog
+          userId={userId}
+          email={email}
+          onClose={() => {
+            setProfileOpen(false);
+            void loadUsername();
+          }}
+        />
       )}
 
       {statsDialogOpen && (
@@ -1060,11 +1126,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       ×
                     </button>
                   </div>
-                  {!!e.total_chapters && (
-                    <div className="mt-2">
-                      <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                  </div>
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     <select
                       value={e.type}
@@ -1121,6 +1185,12 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         }}
                         className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
                       />
+                      <button
+                        onClick={() => void update(e.id, { reread: e.reread + 1 })}
+                        className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                      >
+                        +1
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -1178,11 +1248,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                              }}
                             className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                           />
-                          {!!e.total_chapters && (
-                            <div className="px-2">
-                              <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
-                            </div>
-                          )}
+                          <div className="px-2">
+                            <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -1236,16 +1304,25 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       </select>
                     </td>
                     <td className="px-2 py-1.5">
-                      <input
-                        type="number"
-                         key={`${e.id}-reread-${e.reread}`}
-                         defaultValue={e.reread}
-                         onBlur={(ev) => {
-                           const reread = Number(ev.target.value) || 0;
-                           if (reread !== e.reread) void update(e.id, { reread });
-                         }}
-                        className="w-full bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
-                      />
+                      <div className="flex items-center gap-1 justify-end">
+                        <input
+                          type="number"
+                           key={`${e.id}-reread-${e.reread}`}
+                           defaultValue={e.reread}
+                           onBlur={(ev) => {
+                             const reread = Number(ev.target.value) || 0;
+                             if (reread !== e.reread) void update(e.id, { reread });
+                           }}
+                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
+                        />
+                        <button
+                           onClick={() => void update(e.id, { reread: e.reread + 1 })}
+                          className="opacity-0 group-hover:opacity-100 transition text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
+                          title="+1 reread"
+                        >
+                          +1
+                        </button>
+                      </div>
                     </td>
                     <td className="px-2 py-1.5">
                       <button
@@ -1367,7 +1444,7 @@ function SearchDialog({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [addingId, setAddingId] = useState<number | null>(null);
+  const [addingId, setAddingId] = useState<number | string | null>(null);
 
   useEffect(() => {
     const q = query.trim();
@@ -1377,19 +1454,35 @@ function SearchDialog({
       return;
     }
     const controller = new AbortController();
+    let cancelled = false;
     setStatus("loading");
     const timer = setTimeout(() => {
+      // AniList first (it's the primary, fastest-to-respond source and
+      // supports request cancellation), then fold in MyAnimeList/Kitsu
+      // results as they arrive so the list doesn't wait on the slowest
+      // provider before showing anything.
       searchAniList(q, controller.signal)
         .then((r) => {
+          if (cancelled) return;
           setResults(r);
           setStatus("idle");
         })
         .catch((err) => {
-          if ((err as Error).name === "AbortError") return;
+          if (cancelled || (err as Error).name === "AbortError") return;
           setStatus("error");
+        });
+      searchAllTrackers(q)
+        .then((extra) => {
+          if (cancelled || !extra.length) return;
+          setResults((prev) => [...prev, ...extra]);
+          setStatus("idle");
+        })
+        .catch(() => {
+          /* extra providers are best-effort; AniList result (or its own error) still stands */
         });
     }, 350);
     return () => {
+      cancelled = true;
       clearTimeout(timer);
       controller.abort();
     };
@@ -1424,7 +1517,7 @@ function SearchDialog({
           className="h-10 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <p className="text-[11px] text-muted-foreground -mt-1">
-          Powered by AniList.
+          Powered by AniList, MyAnimeList &amp; Kitsu.
         </p>
         <div className="flex-1 overflow-y-auto scroll-touch -mx-1 px-1 space-y-2">
           {status === "loading" && (
@@ -1440,7 +1533,7 @@ function SearchDialog({
           )}
           {results.map((r) => (
             <div
-              key={r.id}
+              key={`${r.source ?? "anilist"}-${r.id}`}
               className="flex items-center gap-3 rounded-md border border-border p-2 hover:bg-muted/40"
             >
               {r.coverUrl ? (
@@ -1458,6 +1551,7 @@ function SearchDialog({
                   {r.type}
                   {r.author ? ` · ${r.author}` : ""}
                   {typeof r.totalChapters === "number" ? ` · ${r.totalChapters} ch.` : ""}
+                  {r.source ? ` · ${r.source}` : ""}
                 </div>
               </div>
               <button
@@ -1475,8 +1569,17 @@ function SearchDialog({
   );
 }
 
-function ChapterProgress({ chapter, total }: { chapter: number; total: number }) {
-  const pct = total > 0 ? Math.min(100, Math.round((chapter / total) * 100)) : 0;
+function ChapterProgress({ chapter, total }: { chapter: number; total: number | null | undefined }) {
+  if (!total || total <= 0) {
+    // No known total (never enriched, or the source had no chapter count) —
+    // show the chapter count on its own instead of rendering nothing.
+    return (
+      <div className="text-[10px] text-muted-foreground tabular-nums">
+        Ch. {chapter} · total unknown
+      </div>
+    );
+  }
+  const pct = Math.min(100, Math.round((chapter / total) * 100));
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
