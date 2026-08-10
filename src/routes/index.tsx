@@ -5,17 +5,6 @@ import type { Session } from "@supabase/supabase-js";
 import { BarChart3, Eye, EyeOff, Menu, Search, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
-
-<Link
-  to="/"
-  className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5 text-sm"
->
-  <ArrowLeft className="h-3.5 w-3.5" />
-  Back
-</Link>
-
 const STATUS_FILL: Record<string, string> = {
   Ongoing: "var(--ongoing)",
   Dropped: "var(--dropped)",
