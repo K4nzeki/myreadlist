@@ -376,7 +376,7 @@ function AuthPanel() {
 function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const entriesRef = useRef<Entry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
@@ -853,7 +853,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     ev.target.value = "";
   };
 
-  if (loading) {
+  if (_loading) {
     return <ListSkeleton />;
   }
 
