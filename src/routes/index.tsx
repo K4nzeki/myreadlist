@@ -18,7 +18,7 @@ import {
 } from "./shared";
 
 // Update to the correct relative path or alias
-const StatsDialog = lazy(() => import("./StatsDialog"));
+const StatsDialog = lazy(() => import("@/routes/StatsDialog"));
 
 export const Route = createFileRoute("/")({
   head: () => ({
