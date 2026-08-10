@@ -715,6 +715,43 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     }
   };
 
+  const [backfilling, setBackfilling] = useState(false);
+
+  // Retroactively fetch covers/metadata for entries that never got enriched.
+  const backfillCovers = async () => {
+    const missing = entries.filter((e) => !e.cover_url);
+    if (missing.length === 0) {
+      toast.info("Every title already has a cover");
+      return;
+    }
+    setBackfilling(true);
+    try {
+      const enriched = await enrichWithAniList(missing, (entry, m) => ({
+        id: entry.id,
+        type: m.type,
+        cover_url: m.coverUrl,
+        author: m.author,
+        total_chapters: m.totalChapters,
+      }));
+      let found = 0;
+      for (const row of enriched) {
+        if (!row.cover_url) continue;
+        const ok = await update(row.id, {
+          type: row.type,
+          cover_url: row.cover_url,
+          author: row.author,
+          total_chapters: row.total_chapters,
+        });
+        if (ok) found++;
+      }
+      toast.success(
+        found ? `Added covers for ${found} of ${missing.length} titles` : "No AniList matches found",
+      );
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   const runImport = async () => {
     const lines = importText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
     const toInsert: Parsed[] = [];
