@@ -1103,7 +1103,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <img
                         src={e.cover_url}
                         alt=""
-                        className="h-24 w-16 shrink-0 rounded object-cover bg-muted mt-0.5"
+                        className="h-36 w-24 shrink-0 rounded-md object-cover bg-muted mt-0.5"
                       />
                     )}
                     <input
@@ -1229,10 +1229,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         <img
                           src={e.cover_url}
                           alt=""
-                          className="h-16 w-11 rounded object-cover bg-muted"
+                          className="h-24 w-16 rounded-md object-cover bg-muted"
                         />
                       ) : (
-                        <div className="h-16 w-11 rounded bg-muted" />
+                        <div className="h-24 w-16 rounded-md bg-muted" />
                       )}
                     </td>
                     <td className="px-4 py-1.5">
@@ -1540,10 +1540,10 @@ function SearchDialog({
                 <img
                   src={r.coverUrl}
                   alt=""
-                  className="h-20 w-14 shrink-0 rounded object-cover bg-muted"
+                  className="h-28 w-20 shrink-0 rounded-md object-cover bg-muted"
                 />
               ) : (
-                <div className="h-20 w-14 shrink-0 rounded bg-muted" />
+                <div className="h-28 w-20 shrink-0 rounded-md bg-muted" />
               )}
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">{r.title}</div>
