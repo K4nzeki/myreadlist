@@ -10,7 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-.output
+.outputa
 .vinxi
 .tanstack/**
 .nitro
@@ -19,6 +19,12 @@ dist-ssr
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
+
+# Environment variables — never commit real secrets/keys.
+# Use .env.example to document required variable names instead.
+.env
+.env.local
+.env.*.local
 
 # Editor directories and files
 .vscode/*
