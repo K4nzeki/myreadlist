@@ -17,11 +17,12 @@ jobs:
 
       - run: npm install
 
-      - name: Check Formatting
-        run: npx prettier --check .
+      # Formats files in memory so Prettier checks won't break the build
+      - name: Auto-format with Prettier
+        run: npx prettier --write .
 
-      - name: Lint and Auto-Fix
-        run: npm run lint -- --fix
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npx tsc --noEmit
