@@ -58,17 +58,15 @@ export type Database = {
           entry_id: string | null
           id: string
           month: string
-          title: string
-          updated_at: string
+          title: string | null
           user_id: string
         }
         Insert: {
           created_at?: string
           entry_id?: string | null
           id?: string
-          month?: string
-          title: string
-          updated_at?: string
+          month: string
+          title?: string | null
           user_id: string
         }
         Update: {
@@ -76,19 +74,10 @@ export type Database = {
           entry_id?: string | null
           id?: string
           month?: string
-          title?: string
-          updated_at?: string
+          title?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "completion_log_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "entries"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       entries: {
         Row: {
