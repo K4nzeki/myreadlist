@@ -914,6 +914,17 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <BarChart3 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Statistics</span>
             </button>
+            <button
+              onClick={() => void backfillCovers()}
+              disabled={backfilling}
+              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-60"
+              title="Fetch missing covers from AniList"
+            >
+              <span className="hidden sm:inline">
+                {backfilling ? "Fetching covers…" : "Fetch covers"}
+              </span>
+              <span className="sm:hidden">{backfilling ? "…" : "Covers"}</span>
+            </button>
             <Link
               to="/users"
               className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
