@@ -52,83 +52,36 @@ export type Database = {
           },
         ]
       }
-      completion_log: {
-        Row: {
-          created_at: string
-          entry_id: string | null
-          id: string
-          month: string
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          entry_id?: string | null
-          id?: string
-          month?: string
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          entry_id?: string | null
-          id?: string
-          month?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "completion_log_entry_id_fkey"
-            columns: ["entry_id"]
-            isOneToOne: false
-            referencedRelation: "entries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       entries: {
         Row: {
-          author: string | null
           chapter: number
-          cover_url: string | null
           created_at: string
           id: string
           reread: number
           status: string
           title: string
-          total_chapters: number | null
           type: string
           updated_at: string
           user_id: string
         }
         Insert: {
-          author?: string | null
           chapter?: number
-          cover_url?: string | null
           created_at?: string
           id?: string
           reread?: number
           status: string
           title: string
-          total_chapters?: number | null
           type: string
           updated_at?: string
           user_id: string
         }
         Update: {
-          author?: string | null
           chapter?: number
-          cover_url?: string | null
           created_at?: string
           id?: string
           reread?: number
           status?: string
           title?: string
-          total_chapters?: number | null
           type?: string
           updated_at?: string
           user_id?: string
