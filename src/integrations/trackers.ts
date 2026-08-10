@@ -11,11 +11,11 @@ export type TrackerResult = {
   source: string;
 };
 
-export type TrackerProvider = 
-  | "mangaupdates" 
-  | "mangabaka" 
-  | "shikimori" 
-  | "bangumi" 
+export type TrackerProvider =
+  | "mangaupdates"
+  | "mangabaka"
+  | "shikimori"
+  | "bangumi"
   | "hikka";
 
 // --- Helpers ---
@@ -35,7 +35,7 @@ function normalizeEntryType(rawType?: string): EntryType {
   if (type.includes("manhwa")) return "Manhwa";
   if (type.includes("manhua")) return "Manhua";
   if (type.includes("comic") || type.includes("novel")) return "Comic";
-  
+
   return "Manga";
 }
 
@@ -45,46 +45,72 @@ function normalizeEntryType(rawType?: string): EntryType {
  * MyAnimeList via the Jikan public proxy API.
  */
 export async function searchMAL(
-  query: string, 
-  limit = 8, 
-  signal?: AbortSignal
+  query: string,
+  limit = 8,
+  signal?: AbortSignal,
 ): Promise<TrackerResult[]> {
   const url = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&limit=${limit}`;
-  const json = await safeFetchJson<any>(url, signal);
+  const json = await safeFetchJson<{ data?: Record<string, unknown>[] }>(
+    url,
+    signal,
+  );
 
-  return (json.data ?? []).map((m: any) => ({
-    id: m.mal_id,
-    title: m.title_english || m.title || "Untitled",
-    type: normalizeEntryType(m.type),
-    author: m.authors?.[0]?.name ?? null,
-    coverUrl: m.images?.jpg?.image_url ?? m.images?.webp?.image_url ?? null,
-    totalChapters: typeof m.chapters === "number" ? m.chapters : null,
-    status: m.status ?? null,
-    source: "MyAnimeList",
-  }));
+  return (json.data ?? []).map((m: Record<string, unknown>) => {
+    const images = m.images as
+      | {
+          jpg?: { image_url?: string };
+          webp?: { image_url?: string };
+        }
+      | undefined;
+
+    const authors = m.authors as Array<{ name?: string }> | undefined;
+
+    return {
+      id: m.mal_id as string | number,
+      title:
+        (m.title_english as string) || (m.title as string) || "Untitled",
+      type: normalizeEntryType(m.type as string),
+      author: authors?.[0]?.name ?? null,
+      coverUrl: images?.jpg?.image_url ?? images?.webp?.image_url ?? null,
+      totalChapters: typeof m.chapters === "number" ? m.chapters : null,
+      status: (m.status as string) ?? null,
+      source: "MyAnimeList",
+    };
+  });
 }
 
 /**
  * Kitsu API endpoint.
  */
 export async function searchKitsu(
-  query: string, 
-  limit = 8, 
-  signal?: AbortSignal
+  query: string,
+  limit = 8,
+  signal?: AbortSignal,
 ): Promise<TrackerResult[]> {
   const url = `https://kitsu.io/api/edge/manga?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}`;
-  const json = await safeFetchJson<any>(url, signal);
+  const json = await safeFetchJson<{ data?: Record<string, unknown>[] }>(
+    url,
+    signal,
+  );
 
-  return (json.data ?? []).map((d: any) => {
-    const a = d.attributes ?? {};
+  return (json.data ?? []).map((d: Record<string, unknown>) => {
+    const a = (d.attributes as Record<string, unknown>) ?? {};
+    const titles = a.titles as Record<string, string> | undefined;
+    const posterImage = a.posterImage as Record<string, string> | undefined;
+
     return {
-      id: d.id,
-      title: a.titles?.en || a.titles?.en_jp || a.canonicalTitle || "Untitled",
-      type: normalizeEntryType(a.mangaType || a.subtype),
+      id: d.id as string | number,
+      title:
+        titles?.en ||
+        titles?.en_jp ||
+        (a.canonicalTitle as string) ||
+        "Untitled",
+      type: normalizeEntryType((a.mangaType || a.subtype) as string),
       author: null, // Kitsu exposes authors via a separate relationship endpoint
-      coverUrl: a.posterImage?.small ?? a.posterImage?.tiny ?? null,
-      totalChapters: typeof a.chapterCount === "number" ? a.chapterCount : null,
-      status: a.status ?? null,
+      coverUrl: posterImage?.small ?? posterImage?.tiny ?? null,
+      totalChapters:
+        typeof a.chapterCount === "number" ? a.chapterCount : null,
+      status: (a.status as string) ?? null,
       source: "Kitsu",
     };
   });
@@ -97,7 +123,7 @@ export async function searchViaProxy(
   provider: TrackerProvider,
   query: string,
   limit = 8,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<TrackerResult[]> {
   const url = `/api/trackers/${provider}?q=${encodeURIComponent(query)}&limit=${limit}`;
   return safeFetchJson<TrackerResult[]>(url, signal);
@@ -107,9 +133,9 @@ export async function searchViaProxy(
  * Aggregates client-side searches across all direct APIs.
  */
 export async function searchAllTrackers(
-  query: string, 
-  limit = 8, 
-  signal?: AbortSignal
+  query: string,
+  limit = 8,
+  signal?: AbortSignal,
 ): Promise<TrackerResult[]> {
   const settled = await Promise.allSettled([
     searchMAL(query, limit, signal),
