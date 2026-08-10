@@ -15,11 +15,13 @@ jobs:
         with:
           node-version: 22
 
-      # Change 'npm ci' to 'npm install'
       - run: npm install
 
-      - name: Lint
-        run: npm run lint
+      - name: Check Formatting
+        run: npx prettier --check .
+
+      - name: Lint and Auto-Fix
+        run: npm run lint -- --fix
 
       - name: Typecheck
         run: npx tsc --noEmit
