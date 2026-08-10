@@ -101,7 +101,14 @@ function PublicList() {
 
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6">
-      <h1 className="text-xl font-bold text-foreground">{username}'s list</h1>
+      <Link
+        to="/users"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft size={16} />
+        Back to users
+      </Link>
+      <h1 className="mt-4 text-xl font-bold text-foreground">{username}'s list</h1>
       <p className="mt-1 text-sm text-muted-foreground">{entries.length} titles</p>
 
       <div className="mt-4 flex flex-wrap gap-2">
