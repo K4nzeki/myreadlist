@@ -167,6 +167,15 @@
   button {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Hides the Lovable editor's "Edit with Lovable" badge on the published
+     site. This is a CSS-only hide (the element is still in the DOM), which
+     works on any plan — Lovable's own Project settings > Publishing >
+     "Hide Lovable badge" toggle is the equivalent official option but is
+     paid-plan only. */
+  #lovable-badge {
+    display: none !important;
+  }
 }
 
 @utility scroll-touch {
