@@ -140,6 +140,49 @@ async function searchAniList(query: string, signal?: AbortSignal): Promise<Searc
   }));
 }
 
+// Picks the best AniList match for a plain title string: an exact
+// case-insensitive match if one exists, otherwise the top search hit.
+// Returns null on no results or a network error so callers can just skip
+// enrichment silently — AniList also has ~no Western "Comic" catalog, so
+// misses there are expected.
+async function findAniListMatch(title: string): Promise<SearchResult | null> {
+  try {
+    const results = await searchAniList(title);
+    if (!results.length) return null;
+    const exact = results.find(
+      (r) => r.title.trim().toLowerCase() === title.trim().toLowerCase(),
+    );
+    return exact ?? results[0];
+  } catch {
+    return null;
+  }
+}
+
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
+// Runs findAniListMatch over a list with limited concurrency + a small
+// delay per lookup, so bulk/file imports of many titles don't slam
+// AniList's rate limit.
+async function enrichWithAniList<T extends { title: string }>(
+  items: T[],
+  merge: (item: T, match: SearchResult) => T,
+  concurrency = 4,
+): Promise<T[]> {
+  const out: T[] = new Array(items.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      const item = items[idx];
+      const match = await findAniListMatch(item.title);
+      out[idx] = match ? merge(item, match) : item;
+      await sleep(150);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return out;
+}
+
 type SortKey = "title" | "type" | "chapter" | "status" | "reread" | "created_at";
 type SortDir = "asc" | "desc";
 
@@ -580,6 +623,40 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     setSyncError(null);
     toast.success("Title deleted");
   };
+
+  const commitTitleEdit = useCallback(
+    async (entry: Entry, rawTitle: string, revert: (value: string) => void) => {
+      const title = rawTitle.trim();
+      if (!title) {
+        revert(entry.title);
+        toast.error("A title cannot be empty");
+        return;
+      }
+      if (title === entry.title) return;
+
+      const saved = await update(entry.id, { title });
+      if (!saved) {
+        revert(entry.title);
+        return;
+      }
+
+      // Only auto-fill when this entry has no cover yet — never clobber
+      // art the user picked via Search or already has from an import.
+      if (!entry.cover_url) {
+        const match = await findAniListMatch(title);
+        if (match) {
+          void update(entry.id, {
+            type: match.type,
+            cover_url: match.coverUrl,
+            author: match.author,
+            total_chapters: match.totalChapters,
+          });
+        }
+      }
+    },
+    [update],
+  );
+
   const addFromSearch = async (result: SearchResult) => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
     const title = result.title.trim();
@@ -658,9 +735,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         }
       } else errors.push(`Line ${i + 1}: ${err ?? "invalid"}`);
     });
-    let addedCount = 0;
+   let addedCount = 0;
     if (toInsert.length) {
-      const rows = toInsert.map((p) => ({ ...p, user_id: userId }));
+      const enriched = await enrichWithAniList(toInsert, (p, m) => ({
+        ...p,
+        type: m.type ?? p.type,
+        cover_url: m.coverUrl ?? undefined,
+        author: m.author ?? undefined,
+        total_chapters: m.totalChapters ?? undefined,
+      }));
+      const rows = enriched.map((p) => ({ ...p, user_id: userId }));
       const { data, error } = await supabase
         .from("entries")
         .insert(rows)
@@ -707,7 +791,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         loaded.push(e);
       }
       if (loaded.length) {
-        const rows = loaded.map((p) => ({ ...p, user_id: userId }));
+        const enriched = await enrichWithAniList(loaded, (p, m) => ({
+          ...p,
+          type: m.type ?? p.type,
+          cover_url: m.coverUrl ?? undefined,
+          author: m.author ?? undefined,
+          total_chapters: m.totalChapters ?? undefined,
+        }));
+        const rows = enriched.map((p) => ({ ...p, user_id: userId }));
         const { data, error } = await supabase
           .from("entries")
           .insert(rows)
@@ -903,21 +994,15 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       />
                     )}
                     <input
-                      key={`m-${e.id}-${e.title}`}
-                      defaultValue={e.title}
-                      onBlur={(ev) => {
-                        const title = ev.target.value.trim();
-                        if (!title) {
-                          ev.target.value = e.title;
-                          toast.error("A title cannot be empty");
-                        } else if (title !== e.title) {
-                          void update(e.id, { title }).then((saved) => {
-                            if (!saved) ev.target.value = e.title;
-                          });
-                        }
-                      }}
-                      className="min-w-0 flex-1 bg-transparent font-medium outline-none focus:bg-input rounded px-2 py-1"
-                    />
+                             key={`${e.id}-${e.title}`}
+                             defaultValue={e.title}
+                             onBlur={(ev) => {
+                               void commitTitleEdit(e, ev.target.value, (v) => {
+                                 ev.target.value = v;
+                               });
+                             }}
+                            className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
+                          />
                     <button
                       onClick={() => {
                         if (confirm(`Delete "${e.title}"?`)) remove(e.id);
