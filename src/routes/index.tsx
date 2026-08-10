@@ -727,7 +727,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     setBackfilling(true);
     try {
       const enriched = await enrichWithAniList(missing, (entry, m) => ({
-        id: entry.id,
+        ...entry,
         type: m.type,
         cover_url: m.coverUrl,
         author: m.author,
