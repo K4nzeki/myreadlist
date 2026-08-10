@@ -1093,6 +1093,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <table className="hidden md:table w-full min-w-[620px] text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
                 <tr>
+                  <th className="w-12"></th>
                   <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
                   <SortTh label="Type" k="type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-28" />
                   <SortTh label="Ch." k="chapter" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-24" align="right" />
@@ -1104,7 +1105,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-16 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
                       {entries.length === 0
                         ? "No titles yet. Add one, or paste a list on the right."
                         : "Nothing matches that filter."}
@@ -1116,29 +1117,27 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     key={e.id}
                     className={`border-t border-border hover:bg-muted/40 group ${statusRowBorder(e.status)}`}
                   >
+                    <td className="py-1.5 pl-3 sm:pl-4">
+                      {e.cover_url ? (
+                        <img
+                          src={e.cover_url}
+                          alt=""
+                          className="h-10 w-7 rounded object-cover bg-muted"
+                        />
+                      ) : (
+                        <div className="h-10 w-7 rounded bg-muted" />
+                      )}
+                    </td>
                     <td className="px-4 py-1.5">
                       <div className="flex items-center gap-2">
-                        {e.cover_url && (
-                          <img
-                            src={e.cover_url}
-                            alt=""
-                            className="h-8 w-6 shrink-0 rounded object-cover bg-muted"
-                          />
-                        )}
                         <div className="min-w-0 flex-1">
                           <input
                              key={`${e.id}-${e.title}`}
                              defaultValue={e.title}
                              onBlur={(ev) => {
-                               const title = ev.target.value.trim();
-                               if (!title) {
-                                 ev.target.value = e.title;
-                                 toast.error("A title cannot be empty");
-                               } else if (title !== e.title) {
-                                 void update(e.id, { title }).then((saved) => {
-                                   if (!saved) ev.target.value = e.title;
-                                 });
-                               }
+                               void commitTitleEdit(e, ev.target.value, (v) => {
+                                 ev.target.value = v;
+                               });
                              }}
                             className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                           />
