@@ -1025,65 +1025,67 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       <main className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
-          <div className="flex flex-wrap items-center gap-2 px-3 sm:px-4 py-2 border-b border-border">
+          <div className="flex flex-col gap-2 px-3 sm:px-4 py-2 border-b border-border sm:flex-row sm:flex-wrap sm:items-center">
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter…"
-              className="flex-1 min-w-0 h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="w-full sm:flex-1 sm:min-w-[8rem] h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
             />
-            <select
-              value={sortValue}
-              onChange={(e) => applySortValue(e.target.value)}
-              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[9rem]"
-              title="Sort"
-            >
-              <option value="">Latest Added</option>
-              <option value="title:asc">Title A → Z</option>
-              <option value="title:desc">Title Z → A</option>
-              <option value="chapter:desc">Chapter High → Low</option>
-              <option value="chapter:asc">Chapter Low → High</option>
-            </select>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
-              title="Filter by type"
-            >
-              <option value="">Types</option>
-              {TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-              className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
-              title="Filter by status"
-            >
-              <option value="">Status</option>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={() => setSearchDialogOpen(true)}
-              className="h-9 px-3 rounded-md border border-border text-sm font-medium hover:bg-muted shrink-0 inline-flex items-center gap-1.5"
-              title="Search & add by title"
-            >
-              <Search className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Search</span>
-            </button>
-            <button
-              onClick={addBlank}
-              className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 shrink-0"
-            >
-              +<span className="hidden sm:inline"> Add</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={sortValue}
+                onChange={(e) => applySortValue(e.target.value)}
+                className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[9rem]"
+                title="Sort"
+              >
+                <option value="">Latest Added</option>
+                <option value="title:asc">Title A → Z</option>
+                <option value="title:desc">Title Z → A</option>
+                <option value="chapter:desc">Chapter High → Low</option>
+                <option value="chapter:asc">Chapter Low → High</option>
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
+                className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
+                title="Filter by type"
+              >
+                <option value="">Types</option>
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+                className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
+                title="Filter by status"
+              >
+                <option value="">Status</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => setSearchDialogOpen(true)}
+                className="h-9 px-3 rounded-md border border-border text-sm font-medium hover:bg-muted shrink-0 inline-flex items-center gap-1.5"
+                title="Search & add by title"
+              >
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
+              </button>
+              <button
+                onClick={addBlank}
+                className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 shrink-0"
+              >
+                +<span className="hidden sm:inline"> Add</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto scroll-touch safe-b">
@@ -1098,99 +1100,105 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               )}
               {filtered.map((e) => (
                 <li key={e.id} className={`px-3 py-3 ${statusRowBorder(e.status)}`}>
-                  <div className="flex items-start gap-2">
-                    {e.cover_url && (
+                  <div className="flex items-stretch gap-3">
+                    {e.cover_url ? (
                       <img
                         src={e.cover_url}
                         alt=""
-                        className="h-36 w-24 shrink-0 rounded-md object-cover bg-muted mt-0.5"
+                        className="w-24 shrink-0 rounded-md object-cover bg-muted"
                       />
+                    ) : (
+                      <div className="w-24 shrink-0 rounded-md bg-muted" />
                     )}
-                    <input
-                             key={`${e.id}-${e.title}`}
-                             defaultValue={e.title}
-                             onBlur={(ev) => {
-                               void commitTitleEdit(e, ev.target.value, (v) => {
-                                 ev.target.value = v;
-                               });
-                             }}
-                            className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
+                    <div className="min-w-0 flex-1 flex flex-col gap-2">
+                      <div className="flex items-start gap-2">
+                        <input
+                          key={`${e.id}-${e.title}`}
+                          defaultValue={e.title}
+                          onBlur={(ev) => {
+                            void commitTitleEdit(e, ev.target.value, (v) => {
+                              ev.target.value = v;
+                            });
+                          }}
+                          className="min-w-0 flex-1 bg-transparent outline-none focus:bg-input rounded px-2 py-1"
+                        />
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete "${e.title}"?`)) remove(e.id);
+                          }}
+                          aria-label="Delete title"
+                          className="shrink-0 h-9 w-9 grid place-items-center rounded-md text-muted-foreground active:text-destructive text-xl leading-none"
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <select
+                          value={e.type}
+                          onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
+                          className="h-10 rounded-md bg-input px-2 outline-none"
+                        >
+                          {TYPES.map((t) => (
+                            <option key={t} value={t} className="bg-card">
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={e.status}
+                          onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
+                          className="h-10 rounded-md bg-input px-2 outline-none"
+                        >
+                          {STATUSES.map((s) => (
+                            <option key={s} value={s} className="bg-card">
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0">Ch.</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            key={`m-${e.id}-chapter-${e.chapter}`}
+                            defaultValue={e.chapter}
+                            onBlur={(ev) => {
+                              const chapter = Number(ev.target.value) || 0;
+                              if (chapter !== e.chapter) void update(e.id, { chapter });
+                            }}
+                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
                           />
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete "${e.title}"?`)) remove(e.id);
-                      }}
-                      aria-label="Delete title"
-                      className="shrink-0 h-9 w-9 grid place-items-center rounded-md text-muted-foreground active:text-destructive text-xl leading-none"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="mt-2">
-                    <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <select
-                      value={e.type}
-                      onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
-                      className="h-10 rounded-md bg-input px-2 outline-none"
-                    >
-                      {TYPES.map((t) => (
-                        <option key={t} value={t} className="bg-card">
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={e.status}
-                      onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
-                      className="h-10 rounded-md bg-input px-2 outline-none"
-                    >
-                      {STATUSES.map((s) => (
-                        <option key={s} value={s} className="bg-card">
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0">Ch.</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        key={`m-${e.id}-chapter-${e.chapter}`}
-                        defaultValue={e.chapter}
-                        onBlur={(ev) => {
-                          const chapter = Number(ev.target.value) || 0;
-                          if (chapter !== e.chapter) void update(e.id, { chapter });
-                        }}
-                        className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
-                      />
-                      <button
-                        onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
-                        className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
-                      >
-                        +1
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground shrink-0">Reread</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        key={`m-${e.id}-reread-${e.reread}`}
-                        defaultValue={e.reread}
-                        onBlur={(ev) => {
-                          const reread = Number(ev.target.value) || 0;
-                          if (reread !== e.reread) void update(e.id, { reread });
-                        }}
-                        className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
-                      />
-                      <button
-                        onClick={() => void update(e.id, { reread: e.reread + 1 })}
-                        className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
-                      >
-                        +1
-                      </button>
+                          <button
+                            onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
+                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                          >
+                            +1
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0">Reread</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            key={`m-${e.id}-reread-${e.reread}`}
+                            defaultValue={e.reread}
+                            onBlur={(ev) => {
+                              const reread = Number(ev.target.value) || 0;
+                              if (reread !== e.reread) void update(e.id, { reread });
+                            }}
+                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                          />
+                          <button
+                            onClick={() => void update(e.id, { reread: e.reread + 1 })}
+                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                          >
+                            +1
+                          </button>
+                        </div>
+                      </div>
+                      <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
                     </div>
                   </div>
                 </li>
