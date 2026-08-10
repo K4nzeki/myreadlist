@@ -9,8 +9,6 @@ import {
   TYPES,
   STATUSES,
   localMonthKey,
-  normalizeType,
-  normalizeStatus,
   parsePipeLine,
   parseSpaceLine,
   type EntryType,
