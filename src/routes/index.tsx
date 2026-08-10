@@ -17,10 +17,8 @@ import {
   type Parsed,
 } from "./shared";
 
-// recharts (used only inside StatsDialog) is intentionally NOT imported
-// here — StatsDialog is lazy-loaded below so charting code isn't part of
-// the initial bundle for sessions that never open Statistics.
-const StatsDialog = lazy(() => import("./StatsDialog"));
+// Update to the correct relative path or alias
+const StatsDialog = lazy(() => import("@/components/StatsDialog"));
 
 export const Route = createFileRoute("/")({
   head: () => ({
