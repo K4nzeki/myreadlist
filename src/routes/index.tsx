@@ -1,17 +1,28 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { BarChart3, Eye, EyeOff, Menu, Search, User, X } from "lucide-react";
 import { toast } from "sonner";
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
-const STATUS_FILL: Record<string, string> = {
-  Ongoing: "var(--ongoing)",
-  Dropped: "var(--dropped)",
-  Cancelled: "var(--cancelled)",
-  Finished: "var(--finished)",
-};
+import {
+  TYPES,
+  STATUSES,
+  localMonthKey,
+  normalizeType,
+  normalizeStatus,
+  parsePipeLine,
+  parseSpaceLine,
+  type EntryType,
+  type EntryStatus,
+  type Entry,
+  type Parsed,
+} from "./shared";
+
+// recharts (used only inside StatsDialog) is intentionally NOT imported
+// here — StatsDialog is lazy-loaded below so charting code isn't part of
+// the initial bundle for sessions that never open Statistics.
+const StatsDialog = lazy(() => import("./StatsDialog"));
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,38 +38,9 @@ export const Route = createFileRoute("/")({
   component: Tracker,
 });
 
-type EntryType = "Manga" | "Manhwa" | "Manhua" | "Comic";
-type EntryStatus = "Ongoing" | "Dropped" | "Cancelled" | "Finished";
-
-type Entry = {
-  id: string;
-  title: string;
-  type: EntryType;
-  chapter: number;
-  status: EntryStatus;
-  reread: number;
-  created_at?: string;
-  cover_url?: string | null;
-  author?: string | null;
-  total_chapters?: number | null;
-};
-
 // Every entries query below selects this exact column set — kept as one
 // constant so the row shape always matches the Entry type above.
 const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters";
-
-const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
-const STATUSES: EntryStatus[] = ["Ongoing", "Dropped", "Cancelled", "Finished"];
-
-// Single source of truth for "what month is it" across the app: the
-// reader's local calendar month, stored as the first-of-month date. Used
-// when logging a finished title and when building the monthly stats
-// window, so a title finished "this month" always lands in this month's
-// bucket regardless of the server's UTC offset.
-const localMonthKey = (date: Date = new Date()): string =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
-
-const MONTH_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit" });
 
 // Time-of-day greeting for the header, based on the reader's local clock.
 function timeGreeting(): string {
@@ -231,49 +213,6 @@ function serialize(entries: Entry[]) {
   return entries
     .map((e) => `${e.title}|${e.chapter}|${e.status}|${e.type}|${e.reread}`)
     .join("\n");
-}
-
-function normalizeType(raw: string): EntryType | null {
-  const found = TYPES.find((t) => t.toLowerCase() === raw.toLowerCase());
-  return found ?? null;
-}
-function normalizeStatus(raw: string): EntryStatus | null {
-  const found = STATUSES.find((s) => s.toLowerCase() === raw.toLowerCase());
-  return found ?? null;
-}
-
-type Parsed = Omit<Entry, "id">;
-
-function parsePipeLine(line: string): Parsed | null {
-  const parts = line.split("|").map((p) => p.trim());
-  if (parts.length < 5) return null;
-  const [title, chap, status, type, reread] = parts;
-  const t = normalizeType(type);
-  const s = normalizeStatus(status);
-  const c = Number(chap);
-  const r = Number(reread);
-  if (!title || !t || !s || Number.isNaN(c) || Number.isNaN(r)) return null;
-  return { title, type: t, chapter: c, status: s, reread: r };
-}
-
-function parseSpaceLine(line: string): { entry?: Parsed; error?: string } {
-  const tokens = line.trim().split(/\s+/);
-  if (tokens.length < 5) return { error: "needs Title + Chapter Status Type Reread" };
-  const reread = tokens.pop()!;
-  const type = tokens.pop()!;
-  const status = tokens.pop()!;
-  const chapter = tokens.pop()!;
-  const title = tokens.join(" ").trim();
-  const t = normalizeType(type);
-  const s = normalizeStatus(status);
-  const c = Number(chapter);
-  const r = Number(reread);
-  if (!title) return { error: "missing title" };
-  if (!t) return { error: `unknown type "${type}"` };
-  if (!s) return { error: `unknown status "${status}"` };
-  if (Number.isNaN(c)) return { error: `chapter "${chapter}" not a number` };
-  if (Number.isNaN(r)) return { error: `reread "${reread}" not a number` };
-  return { entry: { title, type: t, chapter: c, status: s, reread: r } };
 }
 
 function Tracker() {
@@ -452,6 +391,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(
+    typeof navigator !== "undefined" ? !navigator.onLine : false,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -505,12 +447,19 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     const onVisible = () => {
       if (document.visibilityState === "visible") void reload();
     };
+    const onOnline = () => {
+      setIsOffline(false);
+      void reload();
+    };
+    const onOffline = () => setIsOffline(true);
     window.addEventListener("focus", onFocus);
-    window.addEventListener("online", onFocus);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener("focus", onFocus);
-      window.removeEventListener("online", onFocus);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [reload]);
@@ -912,8 +861,19 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   return (
     <div className="h-[100dvh] w-full overflow-hidden bg-background text-foreground flex flex-col safe-t">
+      {isOffline && (
+        <div
+          role="status"
+          className="px-3 sm:px-6 py-1.5 text-xs bg-muted text-muted-foreground border-b border-border"
+        >
+          You're offline — changes will sync once you're back online.
+        </div>
+      )}
       {syncError && (
-        <div className="px-3 sm:px-6 py-1.5 text-xs bg-destructive/15 text-destructive border-b border-destructive/30">
+        <div
+          role="alert"
+          className="px-3 sm:px-6 py-1.5 text-xs bg-destructive/15 text-destructive border-b border-destructive/30"
+        >
           {syncError}
         </div>
       )}
@@ -1013,7 +973,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       )}
 
       {statsDialogOpen && (
-        <StatsDialog userId={userId} stats={stats} onClose={() => setStatsDialogOpen(false)} />
+        <Suspense fallback={null}>
+          <StatsDialog userId={userId} stats={stats} onClose={() => setStatsDialogOpen(false)} />
+        </Suspense>
       )}
 
       {searchDialogOpen && (
@@ -1022,7 +984,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
 
       {/* Main grid */}
-      <main className="flex-1 min-h-0 flex relative">
+      <main id="main-content" className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
           <div className="flex flex-col gap-2 px-3 sm:px-4 py-2 border-b border-border sm:flex-row sm:flex-wrap sm:items-center">
@@ -1038,6 +1000,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 onChange={(e) => applySortValue(e.target.value)}
                 className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[9rem]"
                 title="Sort"
+                aria-label="Sort"
               >
                 <option value="">Latest Added</option>
                 <option value="title:asc">Title A → Z</option>
@@ -1050,6 +1013,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
                 className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
                 title="Filter by type"
+                aria-label="Filter by type"
               >
                 <option value="">Types</option>
                 {TYPES.map((t) => (
@@ -1063,6 +1027,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
                 className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
                 title="Filter by status"
+                aria-label="Filter by status"
               >
                 <option value="">Status</option>
                 {STATUSES.map((s) => (
@@ -1136,6 +1101,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         <select
                           value={e.type}
                           onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
+                          aria-label={`Type for ${e.title}`}
                           className="h-10 rounded-md bg-input px-2 outline-none"
                         >
                           {TYPES.map((t) => (
@@ -1147,6 +1113,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         <select
                           value={e.status}
                           onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
+                          aria-label={`Status for ${e.title}`}
                           className="h-10 rounded-md bg-input px-2 outline-none"
                         >
                           {STATUSES.map((s) => (
@@ -1266,6 +1233,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <select
                         value={e.type}
                          onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
+                        aria-label={`Type for ${e.title}`}
                         className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
                       >
                         {TYPES.map((t) => (
@@ -1302,6 +1270,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         onChange={(ev) =>
                            void update(e.id, { status: ev.target.value as EntryStatus })
                         }
+                        aria-label={`Status for ${e.title}`}
                         className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
                       >
                         {STATUSES.map((s) => (
@@ -1337,6 +1306,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         onClick={() => {
                           if (confirm(`Delete "${e.title}"?`)) remove(e.id);
                         }}
+                        aria-label={`Delete ${e.title}`}
                         className="opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive text-lg leading-none"
                         title="Delete"
                       >
@@ -1616,213 +1586,6 @@ function Stat({ label, value, big }: { label: string; value: string | number; bi
         {value}
       </span>
       <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-function StatsDialog({
-  userId,
-  stats,
-  onClose,
-}: {
-  userId: string;
-  stats: { chapters: number; total: number; rereads: number; types: Record<EntryType, number>; statuses: Record<EntryStatus, number>; matrix: Record<EntryType, Record<EntryStatus, number>> };
-  onClose: () => void;
-}) {
-  const [statsOpen, setStatsOpen] = useState(true);
-  const [monthly, setMonthly] = useState<{ month: string; label: string; titles: number }[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const WINDOW = 6; // last 6 months, including the current one
-      // The window always runs from [this month - 5] through [this month],
-      // in the reader's local calendar — matching the same local-month
-      // definition used when a completion is logged in `update()`.
-      const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth() - (WINDOW - 1), 1);
-      const startKey = localMonthKey(start);
-
-      const { data } = await supabase
-        .from("completion_log")
-        .select("month")
-        .eq("user_id", userId)
-        .gte("month", startKey)
-        .order("month", { ascending: true });
-      if (!active) return;
-
-      // Count every row per month rather than overwriting, so multiple
-      // titles finished in the same month add up.
-      const totals = new Map<string, number>();
-      for (const row of data ?? []) {
-        totals.set(row.month, (totals.get(row.month) ?? 0) + 1);
-      }
-
-      const series: { month: string; label: string; titles: number }[] = [];
-      for (let i = WINDOW - 1; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        const key = localMonthKey(d);
-        series.push({
-          month: key,
-          label: MONTH_LABEL.format(d),
-          // Months with no finished titles render as 0, so the chart
-          // always shows a full, continuous 6-month window.
-          titles: totals.get(key) ?? 0,
-        });
-      }
-      setMonthly(series);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [userId]);
-
-  const monthlyTotal = monthly.reduce((sum, m) => sum + m.titles, 0);
-  const monthlyAverage = monthly.length ? monthlyTotal / monthly.length : 0;
-
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
-      <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto scroll-touch flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Statistics</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Titles finished, last 6 months */}
-        <div className="border border-border rounded-md p-3 space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="text-xs text-muted-foreground">Titles finished — last 6 months</div>
-            <div className="text-sm font-semibold flex items-baseline gap-2">
-              <span>
-                {monthlyTotal.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
-              </span>
-              <span>
-                {monthlyAverage.toLocaleString(undefined, {
-                  maximumFractionDigits: 1,
-                  minimumFractionDigits: 1,
-                })}{" "}
-                <span className="text-xs font-normal text-muted-foreground">avg/mo</span>
-              </span>
-            </div>
-          </div>
-          <div className="h-40 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthly} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    color: "var(--foreground)",
-                  }}
-                />
-                <Bar dataKey="titles" name="Titles finished" fill="var(--primary)" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Oldest on the left, latest on the right. Months with no finishes show as 0.
-          </p>
-        </div>
-
-        {/* Status-by-type chart */}
-        <div className="border border-border rounded-md p-3 space-y-2">
-          <div className="text-xs text-muted-foreground">Titles by type & status</div>
-          <div className="h-56 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={TYPES.map((t) => ({ type: t, ...stats.matrix[t] }))}
-                margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="type" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    color: "var(--foreground)",
-                  }}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                {STATUSES.map((s) => (
-                  <Bar key={s} dataKey={s} stackId="a" fill={STATUS_FILL[s]} radius={[2, 2, 0, 0]} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Status-by-type breakdown */}
-        <div className="border border-border rounded-md p-3 space-y-2">
-          <button
-            type="button"
-            onClick={() => setStatsOpen((v) => !v)}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            {statsOpen ? "▾" : "▸"} Status by type
-          </button>
-          {statsOpen && (
-            <div className="overflow-x-auto">
-              <table className="text-xs min-w-[360px] w-full">
-                <thead className="text-muted-foreground">
-                  <tr>
-                    <th className="text-left font-medium px-2 py-1">Type</th>
-                    {STATUSES.map((s) => (
-                      <th key={s} className="text-right font-medium px-2 py-1">
-                        {s}
-                      </th>
-                    ))}
-                    <th className="text-right font-medium px-2 py-1">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {TYPES.map((t) => (
-                    <tr key={t} className="border-t border-border">
-                      <td className="px-2 py-1 font-medium">{t}</td>
-                      {STATUSES.map((s) => (
-                        <td key={s} className="px-2 py-1 text-right tabular-nums">
-                          {stats.matrix[t][s]}
-                        </td>
-                      ))}
-                      <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t border-border text-muted-foreground">
-                    <td className="px-2 py-1 font-medium">All</td>
-                    {STATUSES.map((s) => (
-                      <td key={s} className="px-2 py-1 text-right tabular-nums">
-                        {stats.statuses[s]}
-                      </td>
-                    ))}
-                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
