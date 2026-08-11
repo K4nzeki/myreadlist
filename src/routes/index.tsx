@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { BarChart3, Eye, EyeOff, Menu, Moon, Search, Sun, User, X } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Menu, Moon, Search, Sun, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/")({
 
 // Every entries query below selects this exact column set — kept as one
 // constant so the row shape always matches the Entry type above.
-const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters";
+const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, position";
 
 // Time-of-day greeting for the header, based on the reader's local clock.
 function timeGreeting(): string {
@@ -47,6 +47,15 @@ function timeGreeting(): string {
   if (h < 17) return "Good afternoon";
   if (h < 21) return "Good evening";
   return "Good night";
+}
+
+// New titles are inserted above everything else (matches the existing
+// "prepend to the list" behavior), without having to touch every other
+// row's position. Each new title just gets a value lower than the current
+// lowest — cheap, and leaves room to insert below it later via reordering.
+function nextTopPosition(list: Entry[]): number {
+  if (list.length === 0) return 0;
+  return Math.min(...list.map((e) => e.position)) - 1;
 }
 
 type SearchResult = {
@@ -424,7 +433,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       .from("entries")
       .select(ENTRY_COLUMNS)
       .eq("user_id", userId)
-      .order("created_at", { ascending: true });
+      .order("position", { ascending: true });
     if (error) {
       reportDatabaseError("Loading your list", error);
     } else if (data) {
@@ -531,7 +540,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         e.status.toLowerCase().includes(q)
       );
     });
-    if (!sortKey) return list;
+    if (!sortKey) return [...list].sort((a, b) => a.position - b.position);
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
       const av = a[sortKey] ?? "";
@@ -603,6 +612,69 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       return true;
     },
     [reportDatabaseError, userId],
+  );
+
+  // Drag-and-drop reordering. Only enabled in the plain, unfiltered,
+  // unsorted view — with a filter or column sort active there's no honest
+  // mapping from "drag this row" back to a single global position, so we
+  // disable it rather than do something surprising.
+  const canReorder = !filter.trim() && !typeFilter && !statusFilter && !sortKey;
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const reorderEntries = useCallback(
+    async (draggedId: string, targetId: string) => {
+      if (draggedId === targetId) return;
+      const current = [...entriesRef.current].sort((a, b) => a.position - b.position);
+      const fromIdx = current.findIndex((x) => x.id === draggedId);
+      const toIdx = current.findIndex((x) => x.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return;
+
+      const reordered = [...current];
+      const [moved] = reordered.splice(fromIdx, 1);
+      reordered.splice(toIdx, 0, moved);
+
+      // Only the rows whose position actually shifted need a write.
+      const changed: { id: string; position: number }[] = [];
+      reordered.forEach((entry, idx) => {
+        if (entry.position !== idx) changed.push({ id: entry.id, position: idx });
+      });
+      if (changed.length === 0) return;
+
+      // Optimistic local update so the drag feels instant.
+      const nextPosition = new Map(changed.map((c) => [c.id, c.position]));
+      setEntries((prev) =>
+        prev.map((e) => (nextPosition.has(e.id) ? { ...e, position: nextPosition.get(e.id)! } : e)),
+      );
+
+      const results = await Promise.all(
+        changed.map(({ id, position }) =>
+          supabase.from("entries").update({ position }).eq("id", id).eq("user_id", userId),
+        ),
+      );
+      const failed = results.find((r) => r.error);
+      if (failed?.error) {
+        reportDatabaseError("Saving new order", failed.error);
+        void reload();
+      } else {
+        setSyncError(null);
+      }
+    },
+    [userId, reportDatabaseError, reload],
+  );
+
+  // Keyboard/touch-friendly alternative to dragging — swaps a title with its
+  // immediate neighbor. Used by the up/down buttons on mobile, where native
+  // HTML5 drag-and-drop isn't reliably supported.
+  const moveEntry = useCallback(
+    (id: string, direction: -1 | 1) => {
+      const current = [...entriesRef.current].sort((a, b) => a.position - b.position);
+      const idx = current.findIndex((x) => x.id === id);
+      const targetIdx = idx + direction;
+      if (idx === -1 || targetIdx < 0 || targetIdx >= current.length) return;
+      void reorderEntries(id, current[targetIdx].id);
+    },
+    [reorderEntries],
   );
 
   const remove = async (id: string) => {
@@ -677,6 +749,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       cover_url: result.coverUrl,
       author: result.author,
       total_chapters: result.totalChapters,
+      position: nextTopPosition(entries),
     };
     const { data, error } = await supabase
       .from("entries")
@@ -701,7 +774,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     let title = "New title";
     let n = 2;
     while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
-    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Ongoing", reread: 0 };
+    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Ongoing", reread: 0, position: nextTopPosition(entries) };
     const { data, error } = await supabase
       .from("entries")
       .insert(row)
@@ -783,7 +856,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         author: m.author ?? undefined,
         total_chapters: m.totalChapters ?? undefined,
       }));
-      const rows = enriched.map((p) => ({ ...p, user_id: userId }));
+      const rows = enriched.map((p, i) => ({
+        ...p,
+        user_id: userId,
+        // Land the whole pasted batch above the existing list, in the same
+        // relative order the lines were pasted in.
+        position: nextTopPosition(entries) - (enriched.length - 1) + i,
+      }));
       const { data, error } = await supabase
         .from("entries")
         .insert(rows)
@@ -837,7 +916,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           author: m.author ?? undefined,
           total_chapters: m.totalChapters ?? undefined,
         }));
-        const rows = enriched.map((p) => ({ ...p, user_id: userId }));
+        const rows = enriched.map((p, i) => ({
+          ...p,
+          user_id: userId,
+          position: nextTopPosition(entries) - (enriched.length - 1) + i,
+        }));
         const { data, error } = await supabase
           .from("entries")
           .insert(rows)
@@ -1000,6 +1083,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               placeholder="Filter…"
               className="w-full sm:flex-1 sm:min-w-[8rem] h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
             />
+            {!canReorder && (
+              <span className="text-xs text-muted-foreground order-last sm:order-none w-full sm:w-auto">
+                Clear filters &amp; sorting to drag-reorder titles
+              </span>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={sortValue}
@@ -1008,7 +1096,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 title="Sort"
                 aria-label="Sort"
               >
-                <option value="">Latest Added</option>
+                <option value="">My Order</option>
                 <option value="title:asc">Title A → Z</option>
                 <option value="title:desc">Title Z → A</option>
                 <option value="chapter:desc">Chapter High → Low</option>
@@ -1093,6 +1181,28 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           }}
                           className="min-w-0 flex-1 bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                         />
+                        <div className="flex flex-col shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => moveEntry(e.id, -1)}
+                            disabled={!canReorder}
+                            aria-label={`Move ${e.title} up`}
+                            title={canReorder ? "Move up" : "Clear filters & sorting to reorder"}
+                            className="h-4 w-9 grid place-items-center text-muted-foreground disabled:opacity-30"
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveEntry(e.id, 1)}
+                            disabled={!canReorder}
+                            aria-label={`Move ${e.title} down`}
+                            title={canReorder ? "Move down" : "Clear filters & sorting to reorder"}
+                            className="h-4 w-9 grid place-items-center text-muted-foreground disabled:opacity-30"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                         <button
                           onClick={() => {
                             if (confirm(`Delete "${e.title}"?`)) remove(e.id);
@@ -1181,6 +1291,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <table className="hidden md:table w-full min-w-[620px] text-sm">
               <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
                 <tr>
+                  <th className="w-8"></th>
                   <th className="w-12"></th>
                   <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
                   <SortTh label="Type" k="type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-28" />
@@ -1193,7 +1304,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
                       {entries.length === 0
                         ? "No titles yet. Add one, or paste a list on the right."
                         : "Nothing matches that filter."}
@@ -1203,9 +1314,50 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 {filtered.map((e) => (
                   <tr
                     key={e.id}
-                    className={`border-t border-border hover:bg-muted/40 group ${statusRowBorder(e.status)}`}
+                    onDragOver={(ev) => {
+                      if (!canReorder || !dragId) return;
+                      ev.preventDefault();
+                      if (dragOverId !== e.id) setDragOverId(e.id);
+                    }}
+                    onDrop={(ev) => {
+                      ev.preventDefault();
+                      if (!canReorder || !dragId) return;
+                      void reorderEntries(dragId, e.id);
+                      setDragId(null);
+                      setDragOverId(null);
+                    }}
+                    className={`border-t border-border hover:bg-muted/40 group ${statusRowBorder(e.status)} ${
+                      dragId === e.id ? "opacity-50" : ""
+                    } ${dragOverId === e.id && dragId && dragId !== e.id ? "outline outline-2 outline-primary -outline-offset-2" : ""}`}
                   >
-                    <td className="py-1.5 pl-3 sm:pl-4">
+                    <td className="pl-2 sm:pl-3 py-1.5">
+                      <button
+                        type="button"
+                        draggable={canReorder}
+                        onDragStart={(ev) => {
+                          if (!canReorder) {
+                            ev.preventDefault();
+                            return;
+                          }
+                          setDragId(e.id);
+                          ev.dataTransfer.effectAllowed = "move";
+                          ev.dataTransfer.setData("text/plain", e.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setDragOverId(null);
+                        }}
+                        disabled={!canReorder}
+                        aria-label={`Reorder ${e.title}`}
+                        title={canReorder ? "Drag to reorder" : "Clear search, filters, and sorting to reorder"}
+                        className={`h-6 w-6 grid place-items-center rounded text-muted-foreground ${
+                          canReorder ? "cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-muted" : "cursor-not-allowed opacity-40"
+                        }`}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    </td>
+                    <td className="py-1.5 pl-1">
                       {e.cover_url ? (
                         <img
                           src={e.cover_url}
