@@ -614,12 +614,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       // it lands in the month they actually finished it, regardless of the
       // server's UTC offset.
       if (before && typeof patch.status === "string" && before.status !== "Finished" && (data as Entry).status === "Finished") {
-        void supabase.from("completion_log").insert({
+        const { error: logError } = await supabase.from("completion_log").insert({
           user_id: userId,
           entry_id: id,
           title: (data as Entry).title,
           month: localMonthKey(),
         });
+        // Log-only write feeding the Stats dialog — a failure here shouldn't
+        // roll back or toast-error the save that already succeeded, but it
+        // should be visible in the console instead of vanishing silently.
+        if (logError) console.error("[Panels database] Logging completion failed:", logError);
       }
       // Log a chapter-read event whenever the chapter count goes up —
       // covers both the "+1 chapter" button and typing a higher number
@@ -629,12 +633,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       // reader's local calendar day, same reasoning as completion_log's
       // local month.
       if (before && typeof patch.chapter === "number" && patch.chapter > before.chapter) {
-        void supabase.from("chapter_log").insert({
+        const { error: logError } = await supabase.from("chapter_log").insert({
           user_id: userId,
           entry_id: id,
           day: localDayKey(),
           delta: patch.chapter - before.chapter,
         });
+        if (logError) console.error("[Panels database] Logging chapters read failed:", logError);
       }
       return true;
     },
