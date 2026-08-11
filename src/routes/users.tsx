@@ -29,6 +29,13 @@ function UserList() {
 
   return (
     <div className="max-w-md mx-auto p-6">
+      <Link
+        to="/"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
+      >
+        <ArrowLeft size={16} />
+        Back to tracker
+      </Link>
       <h1 className="text-xl font-bold mb-4">Browse users</h1>
       <ul className="divide-y divide-border rounded-md border border-border overflow-hidden">
         {profiles.map((p) => (
