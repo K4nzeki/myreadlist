@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { BarChart3, ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Menu, Moon, Search, Sun, User, X } from "lucide-react";
+import { AlertCircle, ArrowRight, BarChart3, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Sun, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
@@ -293,6 +293,34 @@ function AuthPanel() {
   const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msgKind, setMsgKind] = useState<"error" | "success">("error");
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [pwFocused, setPwFocused] = useState(false);
+  const [userFocused, setUserFocused] = useState(false);
+
+  const emailTouched = email.length > 0;
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const pwTouched = password.length > 0;
+  const pwValid = password.length >= 6;
+
+  const pwStrength = useMemo(() => {
+    if (!password) return 0;
+    let score = 0;
+    if (password.length >= 6) score++;
+    if (password.length >= 10) score++;
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+    if (/[0-9]/.test(password) || /[^A-Za-z0-9]/.test(password)) score++;
+    return score;
+  }, [password]);
+
+  const strengthLabel = ["Too short", "Weak", "Okay", "Good", "Strong"][pwStrength];
+  const strengthColor = [
+    "bg-destructive",
+    "bg-destructive",
+    "bg-ongoing",
+    "bg-accent",
+    "bg-finished",
+  ][pwStrength];
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,86 +337,291 @@ function AuthPanel() {
           },
         });
         if (error) throw error;
+        setMsgKind("success");
         setMsg("Check your email to confirm, then sign in.");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
     } catch (err) {
+      setMsgKind("error");
       setMsg((err as Error).message);
     } finally {
       setBusy(false);
     }
   };
 
+  const switchMode = () => {
+    setMode(mode === "signin" ? "signup" : "signin");
+    setMsg(null);
+  };
+
   return (
-    <div className="h-screen w-screen grid place-items-center bg-background text-foreground p-4">
-      <form
-        onSubmit={submit}
-        className="w-full max-w-sm flex flex-col gap-3 border border-border rounded-lg p-6 bg-card"
-      >
-        <div className="flex items-baseline gap-2">
-          <h1 className="text-2xl font-bold text-primary">Panels</h1>
-          <span className="text-xs text-muted-foreground">reading tracker</span>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {mode === "signin" ? "Sign in to sync your list." : "Create an account to sync your list."}
-        </p>
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        {mode === "signup" && (
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="Username (optional)"
-            maxLength={40}
-            className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-        )}
-        <div className="relative">
-          <input
-            type={showPw ? "text" : "password"}
-            required
-            minLength={6}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (min 6)"
-            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPw((v) => !v)}
-            aria-label={showPw ? "Hide password" : "Show password"}
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
-          >
-            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          {busy ? "…" : mode === "signin" ? "Sign in" : "Sign up"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === "signin" ? "signup" : "signin");
-            setMsg(null);
+    <div className="relative h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
+      {/* Ambient background */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-32 h-[28rem] w-[28rem] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute -bottom-48 -right-24 h-[26rem] w-[26rem] rounded-full bg-accent/20 blur-[120px]" />
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage:
+              "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          {mode === "signin" ? "No account? Sign up" : "Have an account? Sign in"}
-        </button>
-        {msg && <div className="text-xs text-accent">{msg}</div>}
-      </form>
+        />
+      </div>
+
+      <div className="relative z-10 h-full w-full grid lg:grid-cols-2">
+        {/* Left / brand panel */}
+        <div className="hidden lg:flex flex-col justify-between p-12 border-r border-border/60 bg-card/40 backdrop-blur-sm">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-primary/15 border border-primary/30 grid place-items-center">
+              <Layers className="h-[18px] w-[18px] text-primary" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-bold tracking-tight">Panels</span>
+              <span className="text-xs text-muted-foreground">reading tracker</span>
+            </div>
+          </div>
+
+          <div className="max-w-md">
+            <h2 className="text-4xl font-bold tracking-tight leading-[1.15]">
+              Every chapter,
+              <br />
+              <span className="text-primary">exactly where you left it.</span>
+            </h2>
+            <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+              Track manga, manhwa, manhua, and comics across every device. Panels keeps your
+              progress synced, private, and effortless.
+            </p>
+
+            <div className="mt-10 space-y-5">
+              {[
+                { icon: BookOpen, title: "One list, every series", desc: "Manga, manhwa, manhua, and comics — all in one place." },
+                { icon: RefreshCw, title: "Synced everywhere", desc: "Pick up on your phone right where your laptop left off." },
+                { icon: Sparkles, title: "Fast, focused tracking", desc: "No clutter. Just your list, your pace, your progress." },
+              ].map((f) => (
+                <div key={f.title} className="flex items-start gap-3.5">
+                  <div className="mt-0.5 h-8 w-8 shrink-0 rounded-lg bg-secondary border border-border/60 grid place-items-center">
+                    <f.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">{f.title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{f.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground/70">Private by default. Your list, your account.</p>
+        </div>
+
+        {/* Right / form panel */}
+        <div className="flex flex-col items-center justify-center p-4 sm:p-8">
+          <div className="w-full max-w-sm">
+            {/* Mobile-only brand header */}
+            <div className="lg:hidden flex flex-col items-center gap-2 mb-8 text-center">
+              <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 grid place-items-center">
+                <Layers className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xl font-bold tracking-tight text-primary">Panels</span>
+                <span className="text-xs text-muted-foreground">reading tracker</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/5 p-6 sm:p-7">
+              <div className="mb-6">
+                <h1 className="text-xl font-semibold tracking-tight">
+                  {mode === "signin" ? "Welcome back" : "Create your account"}
+                </h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {mode === "signin" ? "Sign in to sync your reading list." : "Start tracking in under a minute."}
+                </p>
+              </div>
+
+              <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+                {/* Email */}
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="auth-email" className="text-xs font-medium text-muted-foreground">
+                    Email
+                  </label>
+                  <div className="relative">
+                    <Mail
+                      className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+                        emailFocused ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    />
+                    <input
+                      id="auth-email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
+                      placeholder="you@example.com"
+                      className={`w-full h-11 pl-10 pr-9 rounded-lg bg-input text-sm outline-none border transition-all focus:ring-2 focus:ring-ring/40 ${
+                        emailTouched && !emailValid
+                          ? "border-destructive/60"
+                          : "border-transparent focus:border-primary/50"
+                      }`}
+                    />
+                    {emailTouched && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {emailValid ? (
+                          <CheckCircle2 className="h-4 w-4 text-finished" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-destructive/70" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Username (signup only) */}
+                {mode === "signup" && (
+                  <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <label htmlFor="auth-username" className="text-xs font-medium text-muted-foreground">
+                      Username <span className="text-muted-foreground/60">(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <User
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+                          userFocused ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
+                      <input
+                        id="auth-username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        onFocus={() => setUserFocused(true)}
+                        onBlur={() => setUserFocused(false)}
+                        placeholder="e.g. panel_reader"
+                        maxLength={40}
+                        className="w-full h-11 pl-10 pr-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Password */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-medium text-muted-foreground">
+                      Password
+                    </label>
+                    <span className="text-[11px] text-muted-foreground/70">min 6 characters</span>
+                  </div>
+                  <div className="relative">
+                    <Lock
+                      className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+                        pwFocused ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    />
+                    <input
+                      id="auth-password"
+                      type={showPw ? "text" : "password"}
+                      required
+                      minLength={6}
+                      autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onFocus={() => setPwFocused(true)}
+                      onBlur={() => setPwFocused(false)}
+                      placeholder="••••••••"
+                      className={`w-full h-11 pl-10 pr-10 rounded-lg bg-input text-sm outline-none border transition-all focus:ring-2 focus:ring-ring/40 ${
+                        pwTouched && !pwValid
+                          ? "border-destructive/60"
+                          : "border-transparent focus:border-primary/50"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((v) => !v)}
+                      aria-label={showPw ? "Hide password" : "Show password"}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    >
+                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {mode === "signup" && password.length > 0 && (
+                    <div className="flex items-center gap-2 pt-0.5 animate-in fade-in duration-200">
+                      <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden flex gap-0.5">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className={`flex-1 rounded-full transition-colors duration-300 ${
+                              i < pwStrength ? strengthColor : "bg-transparent"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground whitespace-nowrap">{strengthLabel}</span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="group h-11 mt-1 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:active:scale-100 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {busy ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {mode === "signin" ? "Signing in…" : "Creating account…"}
+                    </>
+                  ) : (
+                    <>
+                      {mode === "signin" ? "Sign in" : "Create account"}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </>
+                  )}
+                </button>
+
+                {msg && (
+                  <div
+                    className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs animate-in fade-in slide-in-from-top-1 duration-200 ${
+                      msgKind === "success"
+                        ? "border-finished/30 bg-finished/10 text-finished"
+                        : "border-destructive/30 bg-destructive/10 text-destructive"
+                    }`}
+                  >
+                    {msgKind === "success" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    )}
+                    <span>{msg}</span>
+                  </div>
+                )}
+              </form>
+
+              <div className="mt-6 pt-5 border-t border-border/60 text-center">
+                <button
+                  type="button"
+                  onClick={switchMode}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {mode === "signin" ? (
+                    <>No account? <span className="text-primary font-medium">Sign up</span></>
+                  ) : (
+                    <>Have an account? <span className="text-primary font-medium">Sign in</span></>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-center text-[11px] text-muted-foreground/60 mt-6">
+              Private by default — synced only to your account.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
