@@ -625,14 +625,15 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         // should be visible in the console instead of vanishing silently.
         if (logError) console.error("[Panels database] Logging completion failed:", logError);
       }
-      // Log a chapter-read event whenever the chapter count goes up —
-      // covers both the "+1 chapter" button and typing a higher number
-      // in directly, for any title (new to your list or one you've had
-      // for a while). Never logged on a decrease, since that's a
-      // correction, not chapters actually read. Logged against the
-      // reader's local calendar day, same reasoning as completion_log's
-      // local month.
-      if (before && typeof patch.chapter === "number" && patch.chapter > before.chapter) {
+      // Log a chapter change (up or down) so the "chapters read" stat
+      // stays accurate — the +1 button, typing a higher number, or
+      // correcting a typo/over-count back down, for any title. A decrease
+      // logs a negative delta, so correcting a chapter you bumped by
+      // mistake nets back out of the day's total instead of leaving a
+      // stats total that's now too high. Logged against the reader's
+      // local calendar day, same reasoning as completion_log's local
+      // month.
+      if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter) {
         const { error: logError } = await supabase.from("chapter_log").insert({
           user_id: userId,
           entry_id: id,
