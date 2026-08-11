@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { TYPES, STATUSES, STATUS_FILL, localMonthKey, MONTH_LABEL, localDayKey, DAY_LABEL } from "@/routes/shared";
+import { TYPES, STATUSES, STATUS_FILL, localDayKey, DAY_LABEL } from "@/routes/shared";
 import type { EntryType, EntryStatus } from "@/routes/shared";
 
 export default function StatsDialog({
@@ -15,56 +15,6 @@ export default function StatsDialog({
   onClose: () => void;
 }) {
   const [statsOpen, setStatsOpen] = useState(true);
-  const [monthly, setMonthly] = useState<{ month: string; label: string; titles: number }[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const WINDOW = 6; // last 6 months, including the current one
-      // The window always runs from [this month - 5] through [this month],
-      // in the reader's local calendar — matching the same local-month
-      // definition used when a completion is logged in `update()`.
-      const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth() - (WINDOW - 1), 1);
-      const startKey = localMonthKey(start);
-
-      const { data, error } = await supabase
-        .from("completion_log")
-        .select("month")
-        .eq("user_id", userId)
-        .gte("month", startKey)
-        .order("month", { ascending: true });
-      if (!active) return;
-      if (error) console.error("[Panels database] Loading finished-titles stats failed:", error);
-
-      // Count every row per month rather than overwriting, so multiple
-      // titles finished in the same month add up.
-      const totals = new Map<string, number>();
-      for (const row of data ?? []) {
-        totals.set(row.month, (totals.get(row.month) ?? 0) + 1);
-      }
-
-      const series: { month: string; label: string; titles: number }[] = [];
-      for (let i = WINDOW - 1; i >= 0; i--) {
-        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-        const key = localMonthKey(d);
-        series.push({
-          month: key,
-          label: MONTH_LABEL.format(d),
-          // Months with no finished titles render as 0, so the chart
-          // always shows a full, continuous 6-month window.
-          titles: totals.get(key) ?? 0,
-        });
-      }
-      setMonthly(series);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [userId]);
-
-  const monthlyTotal = monthly.reduce((sum, m) => sum + m.titles, 0);
-  const monthlyAverage = monthly.length ? monthlyTotal / monthly.length : 0;
 
   const [daily, setDaily] = useState<{ day: string; label: string; chapters: number }[]>([]);
 
@@ -127,53 +77,6 @@ export default function StatsDialog({
           >
             <X className="h-4 w-4" />
           </button>
-        </div>
-
-        {/* Titles finished, last 6 months */}
-        <div className="border border-border rounded-md p-3 space-y-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="text-xs text-muted-foreground">Titles finished — last 6 months</div>
-            <div className="text-sm font-semibold flex items-baseline gap-2">
-              <span>
-                {monthlyTotal.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
-              </span>
-              <span>
-                {monthlyAverage.toLocaleString(undefined, {
-                  maximumFractionDigits: 1,
-                  minimumFractionDigits: 1,
-                })}{" "}
-                <span className="text-xs font-normal text-muted-foreground">avg/mo</span>
-              </span>
-            </div>
-          </div>
-          <div className="h-40 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthly} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  cursor={{ fill: "var(--muted)", opacity: 0.3 }}
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    color: "var(--foreground)",
-                  }}
-                />
-                <Bar dataKey="titles" name="Titles finished" fill="var(--primary)" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            Oldest on the left, latest on the right. Months with no finishes show as 0.
-          </p>
         </div>
 
         {/* Chapters read, last 14 days */}
