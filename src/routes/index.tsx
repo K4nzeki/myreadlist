@@ -1549,7 +1549,7 @@ function ChapterProgress({ chapter, total }: { chapter: number; total: number | 
     // show the chapter count on its own instead of rendering nothing.
     return (
       <div className="text-[10px] text-muted-foreground tabular-nums">
-        Ch. {chapter} · total unknown
+        Ch. {chapter} · total chapters unknown
       </div>
     );
   }
