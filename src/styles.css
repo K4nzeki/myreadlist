@@ -203,9 +203,9 @@
 @utility no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
-}
-@utility no-scrollbar::-webkit-scrollbar {
-  display: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Custom scrollbar — themed to match light/dark mode via the same CSS
