@@ -16,6 +16,7 @@ export type Entry = {
   cover_url?: string | null;
   author?: string | null;
   total_chapters?: number | null;
+  position: number;
 };
 
 export const STATUS_FILL: Record<string, string> = {
@@ -48,7 +49,7 @@ export function normalizeStatus(raw: string): EntryStatus | null {
   return found ?? null;
 }
 
-export type Parsed = Omit<Entry, "id">;
+export type Parsed = Omit<Entry, "id" | "position">;
 
 export function parsePipeLine(line: string): Parsed | null {
   const parts = line.split("|").map((p) => p.trim());
