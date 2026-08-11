@@ -39,6 +39,14 @@ export const localMonthKey = (date: Date = new Date()): string =>
 
 export const MONTH_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit" });
 
+// Same idea as localMonthKey, but per calendar day — used to log/chart
+// chapters read per day in the reader's own local calendar, not the
+// server's UTC offset.
+export const localDayKey = (date: Date = new Date()): string =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+export const DAY_LABEL = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+
 export function normalizeType(raw: string): EntryType | null {
   const found = TYPES.find((t) => t.toLowerCase() === raw.toLowerCase());
   return found ?? null;
