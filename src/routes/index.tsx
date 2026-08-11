@@ -2,9 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { BarChart3, Eye, EyeOff, Menu, Search, User, X } from "lucide-react";
+import { BarChart3, Eye, EyeOff, Menu, Moon, Search, Sun, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
+import { useTheme } from "@/hooks/use-theme";
 import {
   TYPES,
   STATUSES,
@@ -391,6 +392,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     typeof navigator !== "undefined" ? !navigator.onLine : false,
   );
   const fileRef = useRef<HTMLInputElement>(null);
+  const { resolved: theme, toggle: toggleTheme } = useTheme();
 
   useEffect(() => {
     entriesRef.current = entries;
@@ -883,10 +885,18 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         </div>
 
         <button
+          onClick={toggleTheme}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="ml-auto order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border hover:bg-muted"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </button>
+
+        <button
           onClick={() => setPanelOpen((v) => !v)}
           aria-label="Toggle bulk import panel"
           aria-expanded={panelOpen}
-          className="ml-auto order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border hover:bg-muted"
+          className="order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border hover:bg-muted"
         >
           {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
