@@ -161,16 +161,25 @@ function PublicList() {
             {filtered.map((e) => (
               <tr key={e.id}>
                 <td className="px-3 py-2">
-                  {e.cover_url ? (
-                    <img
-                      src={e.cover_url}
-                      alt={`${e.title} cover`}
-                      loading="lazy"
-                      className="h-14 w-10 rounded object-cover border border-border"
-                    />
-                  ) : (
-                    <div className="h-14 w-10 rounded bg-muted" />
-                  )}
+                  <a
+                    href={`https://anilist.co/search/manga?search=${encodeURIComponent(e.title)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open ${e.title} details on AniList`}
+                    title={`Open "${e.title}" on AniList`}
+                    className="block rounded transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {e.cover_url ? (
+                      <img
+                        src={e.cover_url}
+                        alt={`${e.title} cover`}
+                        loading="lazy"
+                        className="h-14 w-10 rounded object-cover border border-border"
+                      />
+                    ) : (
+                      <div className="h-14 w-10 rounded bg-muted" />
+                    )}
+                  </a>
                 </td>
                 <td className="px-3 py-2 font-medium text-foreground">{e.title}</td>
                 <td className="px-3 py-2 text-muted-foreground">{e.type}</td>
