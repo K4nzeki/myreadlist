@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
-import { TYPES, STATUSES, STATUS_FILL, localMonthKey, MONTH_LABEL } from "./shared";
-import type { EntryType, EntryStatus } from "./shared";
+import { TYPES, STATUSES, STATUS_FILL, localMonthKey, MONTH_LABEL } from "@/routes/shared";
+import type { EntryType, EntryStatus } from "@/routes/shared";
 
 export default function StatsDialog({
   userId,
