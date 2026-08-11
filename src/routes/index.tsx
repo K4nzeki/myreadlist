@@ -1393,6 +1393,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </div>
             {!canReorder && (
               <span className="text-xs text-muted-foreground order-last sm:order-none w-full sm:w-auto">
+                Clear filters &amp; sorting to drag-reorder titles
               </span>
             )}
             <div className="flex flex-wrap items-center gap-1.5">
