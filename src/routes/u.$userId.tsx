@@ -144,6 +144,7 @@ function PublicList() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-left text-muted-foreground">
             <tr>
+              <th className="w-14 px-3 py-2 font-medium">Cover</th>
               {(["title", "type", "chapter", "status", "reread"] as SortKey[]).map((k) => (
                 <th
                   key={k}
@@ -159,6 +160,18 @@ function PublicList() {
           <tbody className="divide-y divide-border">
             {filtered.map((e) => (
               <tr key={e.id}>
+                <td className="px-3 py-2">
+                  {e.cover_url ? (
+                    <img
+                      src={e.cover_url}
+                      alt={`${e.title} cover`}
+                      loading="lazy"
+                      className="h-14 w-10 rounded object-cover border border-border"
+                    />
+                  ) : (
+                    <div className="h-14 w-10 rounded bg-muted" />
+                  )}
+                </td>
                 <td className="px-3 py-2 font-medium text-foreground">{e.title}</td>
                 <td className="px-3 py-2 text-muted-foreground">{e.type}</td>
                 <td className="px-3 py-2">{e.chapter}</td>
@@ -168,7 +181,7 @@ function PublicList() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
                   No titles found.
                 </td>
               </tr>
