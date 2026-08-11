@@ -28,13 +28,14 @@ export default function StatsDialog({
       const start = new Date(today.getFullYear(), today.getMonth() - (WINDOW - 1), 1);
       const startKey = localMonthKey(start);
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("completion_log")
         .select("month")
         .eq("user_id", userId)
         .gte("month", startKey)
         .order("month", { ascending: true });
       if (!active) return;
+      if (error) console.error("[Panels database] Loading finished-titles stats failed:", error);
 
       // Count every row per month rather than overwriting, so multiple
       // titles finished in the same month add up.
@@ -75,13 +76,14 @@ export default function StatsDialog({
       const start = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (WINDOW - 1));
       const startKey = localDayKey(start);
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("chapter_log")
         .select("day, delta")
         .eq("user_id", userId)
         .gte("day", startKey)
         .order("day", { ascending: true });
       if (!active) return;
+      if (error) console.error("[Panels database] Loading chapters-read stats failed:", error);
 
       // Sum chapters per day rather than counting rows — a single day can
       // have several log entries (multiple titles, or several +1s).
