@@ -231,3 +231,34 @@
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Lightweight entrance animations for modals/overlays that render their
+   own markup instead of going through the shadcn Dialog/Sheet primitives
+   (which already animate via tw-animate-css data-state attributes). */
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes panel-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility animate-overlay-in {
+  animation: overlay-fade-in 150ms ease-out;
+}
+
+@utility animate-panel-in {
+  animation: panel-pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
