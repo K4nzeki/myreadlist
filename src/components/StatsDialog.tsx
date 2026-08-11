@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { TYPES, STATUSES, STATUS_FILL, localDayKey, DAY_LABEL } from "@/routes/shared";
@@ -65,26 +65,31 @@ export default function StatsDialog({
   const dailyAverage = daily.length ? dailyTotal / daily.length : 0;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
-      <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto scroll-touch flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto scroll-touch flex flex-col gap-3 rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/10 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Statistics</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 grid place-items-center">
+              <BarChart3 className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-base font-semibold">Statistics</h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="h-8 w-8 grid place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Chapters read, last 14 days */}
-        <div className="border border-border rounded-md p-3 space-y-2">
+        <div className="border border-border/80 bg-secondary/20 rounded-xl p-3.5 space-y-2">
           <div className="flex items-baseline justify-between gap-2">
             <div className="text-xs text-muted-foreground">Chapters read — last 14 days</div>
             <div className="text-sm font-semibold flex items-baseline gap-2">
-              <span>
+              <span className="text-primary">
                 {dailyTotal.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">total</span>
               </span>
               <span>
@@ -127,7 +132,7 @@ export default function StatsDialog({
         </div>
 
         {/* Status-by-type chart */}
-        <div className="border border-border rounded-md p-3 space-y-2">
+        <div className="border border-border/80 bg-secondary/20 rounded-xl p-3.5 space-y-2">
           <div className="text-xs text-muted-foreground">Titles by type & status</div>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -158,48 +163,49 @@ export default function StatsDialog({
         </div>
 
         {/* Status-by-type breakdown */}
-        <div className="border border-border rounded-md p-3 space-y-2">
+        <div className="border border-border/80 bg-secondary/20 rounded-xl p-3.5 space-y-2">
           <button
             type="button"
             onClick={() => setStatsOpen((v) => !v)}
-            className="text-xs text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            {statsOpen ? "▾" : "▸"} Status by type
+            {statsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            Status by type
           </button>
           {statsOpen && (
             <div className="overflow-x-auto">
               <table className="text-xs min-w-[360px] w-full">
                 <thead className="text-muted-foreground">
                   <tr>
-                    <th className="text-left font-medium px-2 py-1">Type</th>
+                    <th className="text-left font-medium px-2 py-1.5">Type</th>
                     {STATUSES.map((s) => (
-                      <th key={s} className="text-right font-medium px-2 py-1">
+                      <th key={s} className="text-right font-medium px-2 py-1.5">
                         {s}
                       </th>
                     ))}
-                    <th className="text-right font-medium px-2 py-1">Total</th>
+                    <th className="text-right font-medium px-2 py-1.5">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {TYPES.map((t) => (
-                    <tr key={t} className="border-t border-border">
-                      <td className="px-2 py-1 font-medium">{t}</td>
+                    <tr key={t} className="border-t border-border/70 hover:bg-card/60 transition-colors">
+                      <td className="px-2 py-1.5 font-medium">{t}</td>
                       {STATUSES.map((s) => (
-                        <td key={s} className="px-2 py-1 text-right tabular-nums">
+                        <td key={s} className="px-2 py-1.5 text-right tabular-nums">
                           {stats.matrix[t][s]}
                         </td>
                       ))}
-                      <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.types[t]}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums font-semibold text-primary">{stats.types[t]}</td>
                     </tr>
                   ))}
                   <tr className="border-t border-border text-muted-foreground">
-                    <td className="px-2 py-1 font-medium">All</td>
+                    <td className="px-2 py-1.5 font-medium">All</td>
                     {STATUSES.map((s) => (
-                      <td key={s} className="px-2 py-1 text-right tabular-nums">
+                      <td key={s} className="px-2 py-1.5 text-right tabular-nums">
                         {stats.statuses[s]}
                       </td>
                     ))}
-                    <td className="px-2 py-1 text-right tabular-nums font-semibold">{stats.total}</td>
+                    <td className="px-2 py-1.5 text-right tabular-nums font-semibold">{stats.total}</td>
                   </tr>
                 </tbody>
               </table>
