@@ -10,6 +10,7 @@ import {
   TYPES,
   STATUSES,
   localMonthKey,
+  localDayKey,
   parsePipeLine,
   parseSpaceLine,
   type EntryType,
@@ -618,6 +619,21 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           entry_id: id,
           title: (data as Entry).title,
           month: localMonthKey(),
+        });
+      }
+      // Log a chapter-read event whenever the chapter count goes up —
+      // covers both the "+1 chapter" button and typing a higher number
+      // in directly, for any title (new to your list or one you've had
+      // for a while). Never logged on a decrease, since that's a
+      // correction, not chapters actually read. Logged against the
+      // reader's local calendar day, same reasoning as completion_log's
+      // local month.
+      if (before && typeof patch.chapter === "number" && patch.chapter > before.chapter) {
+        void supabase.from("chapter_log").insert({
+          user_id: userId,
+          entry_id: id,
+          day: localDayKey(),
+          delta: patch.chapter - before.chapter,
         });
       }
       return true;
