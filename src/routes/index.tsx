@@ -67,6 +67,11 @@ type SearchResult = {
   totalChapters: number | null;
   status: string | null;
   source?: string;
+  // Whether this result's title is an exact (case-insensitive) match for
+  // the title we searched for, vs. just the top fuzzy search hit. `type`
+  // is only trustworthy to auto-apply when this is true — a fuzzy hit can
+  // be a different series entirely, with a different (wrong) type.
+  exactMatch?: boolean;
 };
 
 // AniList's public GraphQL API. No key required, CORS-enabled for browser
@@ -144,7 +149,8 @@ async function searchAniList(query: string, signal?: AbortSignal): Promise<Searc
 // case-insensitive match if one exists, otherwise the top search hit.
 // Returns null on no results or a network error so callers can just skip
 // enrichment silently — AniList also has ~no Western "Comic" catalog, so
-// misses there are expected.
+// misses there are expected. `exactMatch` is stamped on the result so
+// callers can tell a real match from a fuzzy best-guess.
 async function findAniListMatch(title: string): Promise<SearchResult | null> {
   try {
     const results = await searchAniList(title);
@@ -152,16 +158,21 @@ async function findAniListMatch(title: string): Promise<SearchResult | null> {
     const exact = results.find(
       (r) => r.title.trim().toLowerCase() === title.trim().toLowerCase(),
     );
-    return exact ?? results[0];
+    if (exact) return { ...exact, exactMatch: true };
+    return { ...results[0], exactMatch: false };
   } catch {
     return null;
   }
 }
 
-function pickBestMatch<T extends { title: string }>(title: string, results: T[]): T | null {
+function pickBestMatch<T extends { title: string }>(
+  title: string,
+  results: T[],
+): (T & { exactMatch: boolean }) | null {
   if (!results.length) return null;
   const exact = results.find((r) => r.title.trim().toLowerCase() === title.trim().toLowerCase());
-  return exact ?? results[0];
+  if (exact) return { ...exact, exactMatch: true };
+  return { ...results[0], exactMatch: false };
 }
 
 // Same as findAniListMatch, but falls back to MyAnimeList then Kitsu when
@@ -719,8 +730,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       if (!entry.cover_url) {
         const match = await findTrackerMatch(title);
         if (match) {
+          // Same reasoning as backfillCovers: only trust `type` from an
+          // exact title match, not a fuzzy best-guess result.
           void update(entry.id, {
-            type: match.type,
+            ...(match.exactMatch ? { type: match.type } : {}),
             cover_url: match.coverUrl,
             author: match.author,
             total_chapters: match.totalChapters,
@@ -802,9 +815,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     }
     setBackfilling(true);
     try {
+      // Only apply `type` when the tracker match was an exact title match.
+      // A fuzzy/best-guess match (pickBestMatch's top-result fallback) can
+      // be a different series entirely, and its type was overwriting a
+      // correct manually-set type with a wrong guess.
       const enriched = await enrichWithAniList(missing, (entry, m) => ({
         ...entry,
-        type: m.type,
+        type: m.exactMatch ? m.type : entry.type,
         cover_url: m.coverUrl,
         author: m.author,
         total_chapters: m.totalChapters,
