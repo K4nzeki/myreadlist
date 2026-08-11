@@ -82,6 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "mobile-web-app-capable", content: "yes" },
+      { name: "theme-color", content: "#c17a3a" },
+      { name: "apple-mobile-web-app-title", content: "Panels" },
       { title: "Panels — Reading Tracker" },
       { name: "description", content: "A synced tracker for manga, manhwa, manhua, and comics. Log progress, see stats, and import in bulk." },
       { property: "og:title", content: "Panels — Reading Tracker" },
@@ -95,6 +97,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
   shellComponent: RootShell,
@@ -128,6 +132,21 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Register the PWA service worker. Production-only and client-only so it
+  // never affects local dev or SSR, and never interferes with the regular
+  // website experience in a normal browser tab.
+  useEffect(() => {
+    if (
+      import.meta.env.PROD &&
+      typeof window !== "undefined" &&
+      "serviceWorker" in navigator
+    ) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        // Non-fatal: installability is a progressive enhancement.
+      });
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
