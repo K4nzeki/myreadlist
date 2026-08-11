@@ -16,11 +16,11 @@ type Entry = {
   type: EntryType;
   chapter: number;
   status: EntryStatus;
-  reread: number;
   cover_url?: string | null;
+  created_at: string;
 };
 
-type SortKey = "title" | "type" | "chapter" | "status" | "reread";
+type SortKey = "title" | "type" | "chapter" | "status" | "created_at";
 type SortDir = "asc" | "desc";
 
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
@@ -35,8 +35,8 @@ function PublicList() {
   const [filter, setFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   useEffect(() => {
     (async () => {
@@ -44,9 +44,9 @@ function PublicList() {
         supabase.from("profiles").select("username").eq("id", userId).maybeSingle(),
         supabase
           .from("entries")
-          .select("id, title, type, chapter, status, reread, cover_url")
+          .select("id, title, type, chapter, status, cover_url, created_at")
           .eq("user_id", userId)
-          .order("created_at", { ascending: true }),
+          .order("created_at", { ascending: false }),
       ]);
       setUsername(profile?.username ?? "Unknown user");
       setEntries((rows ?? []) as Entry[]);
@@ -70,7 +70,7 @@ function PublicList() {
     if (sortKey) {
       list.sort((a, b) => {
         let cmp = 0;
-        if (sortKey === "chapter" || sortKey === "reread") {
+        if (sortKey === "chapter") {
           cmp = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
         } else {
           cmp = String(a[sortKey]).localeCompare(String(b[sortKey]));
@@ -145,7 +145,7 @@ function PublicList() {
           <thead className="bg-muted/50 text-left text-muted-foreground">
             <tr>
               <th className="w-14 px-3 py-2 font-medium">Cover</th>
-              {(["title", "type", "chapter", "status", "reread"] as SortKey[]).map((k) => (
+              {(["title", "type", "chapter", "status"] as SortKey[]).map((k) => (
                 <th
                   key={k}
                   onClick={() => toggleSort(k)}
@@ -185,12 +185,11 @@ function PublicList() {
                 <td className="px-3 py-2 text-muted-foreground">{e.type}</td>
                 <td className="px-3 py-2">{e.chapter}</td>
                 <td className="px-3 py-2">{e.status}</td>
-                <td className="px-3 py-2">{e.reread}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
                   No titles found.
                 </td>
               </tr>
