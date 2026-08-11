@@ -710,7 +710,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     [reorderEntries],
   );
 
-  const remove = async (id: string) => {
+  const remove = async (id: string, message = "Title deleted") => {
     const { data, error } = await supabase
       .from("entries")
       .delete()
@@ -728,7 +728,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     }
     setEntries((prev) => prev.filter((e) => e.id !== id));
     setSyncError(null);
-    toast.success("Title deleted");
+    toast.success(message);
   };
 
   const commitTitleEdit = useCallback(
@@ -739,7 +739,18 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         toast.error("A title cannot be empty");
         return;
       }
-      if (title === entry.title) return;
+      const isDefaultTitle = /^New title( \d+)?$/i.test(title);
+      if (title === entry.title) {
+        if (isDefaultTitle) {
+          void remove(entry.id, "Removed — left as \"New title\"");
+        }
+        return;
+      }
+
+      if (isDefaultTitle) {
+        void remove(entry.id, "Removed — left as \"New title\"");
+        return;
+      }
 
       const saved = await update(entry.id, { title });
       if (!saved) {
@@ -1122,6 +1133,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               placeholder="Filter…"
               className="w-full sm:flex-1 sm:min-w-[8rem] h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
             />
+            {!canReorder && (
+              <span className="text-xs text-muted-foreground order-last sm:order-none w-full sm:w-auto">
+                Clear filters &amp; sorting to drag-reorder titles
+              </span>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <select
                 value={sortValue}
