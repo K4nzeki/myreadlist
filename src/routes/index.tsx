@@ -1253,7 +1253,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         <button
           onClick={toggleTheme}
           aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          className="ml-auto order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border hover:bg-muted"
+          className="ml-auto order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
         >
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
@@ -1262,7 +1262,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           onClick={() => setPanelOpen((v) => !v)}
           aria-label="Toggle bulk import panel"
           aria-expanded={panelOpen}
-          className="order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border hover:bg-muted"
+          className="order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
         >
           {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </button>
@@ -1293,14 +1293,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </span>
             <button
               onClick={() => setProfileOpen(true)}
-              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5"
             >
               <User className="h-3.5 w-3.5" />
               Profile
             </button>
             <button
               onClick={() => setStatsDialogOpen(true)}
-              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5"
             >
               <BarChart3 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Statistics</span>
@@ -1308,7 +1308,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <button
               onClick={() => void backfillCovers()}
               disabled={backfilling}
-              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5 disabled:opacity-60"
+              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5 disabled:opacity-60"
               title="Fetch missing covers from AniList"
             >
               <span className="hidden sm:inline">
@@ -1318,14 +1318,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </button>
             <Link
               to="/users"
-              className="h-8 px-3 rounded-md border border-border hover:bg-muted inline-flex items-center gap-1.5"
+              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5"
             >
               <User className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Browse Users</span>
             </Link>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="h-8 px-3 rounded-md border border-border hover:bg-muted"
+              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
             >
               Sign out
             </button>
@@ -1364,7 +1364,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Filter…"
-              className="w-full sm:flex-1 sm:min-w-[8rem] h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="w-full sm:flex-1 sm:min-w-[8rem] h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
             />
             {!canReorder && (
               <span className="text-xs text-muted-foreground order-last sm:order-none w-full sm:w-auto">
@@ -1375,7 +1375,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={sortValue}
                 onChange={(e) => applySortValue(e.target.value)}
-                className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[9rem]"
+                className="h-9 px-2 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105 cursor-pointer shrink-0 max-w-[9rem]"
                 title="Sort"
                 aria-label="Sort"
               >
@@ -1390,7 +1390,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[7.5rem]"
+                className="h-9 px-2 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105 cursor-pointer shrink-0 max-w-[7.5rem]"
                 title="Filter by type"
                 aria-label="Filter by type"
               >
@@ -1404,7 +1404,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                className="h-9 px-2 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring cursor-pointer shrink-0 max-w-[8rem]"
+                className="h-9 px-2 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105 cursor-pointer shrink-0 max-w-[8rem]"
                 title="Filter by status"
                 aria-label="Filter by status"
               >
@@ -1417,7 +1417,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               </select>
               <button
                 onClick={() => setSearchDialogOpen(true)}
-                className="h-9 px-3 rounded-md border border-border text-sm font-medium hover:bg-muted shrink-0 inline-flex items-center gap-1.5"
+                className="h-9 px-3 rounded-md border border-border text-sm font-medium shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] shrink-0 inline-flex items-center gap-1.5"
                 title="Search & add by title"
               >
                 <Search className="h-3.5 w-3.5" />
@@ -1425,7 +1425,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               </button>
               <button
                 onClick={addBlank}
-                className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 shrink-0"
+                className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97] shrink-0"
               >
                 +<span className="hidden sm:inline"> Add</span>
               </button>
@@ -1449,10 +1449,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <img
                         src={e.cover_url}
                         alt=""
-                        className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
+                        className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted shadow-sm ring-1 ring-border/50"
                       />
                     ) : (
-                      <div className="w-20 sm:w-24 shrink-0 rounded-md bg-muted" />
+                      <div className="w-20 sm:w-24 shrink-0 rounded-md bg-muted shadow-sm ring-1 ring-border/50" />
                     )}
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
@@ -1464,7 +1464,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                               ev.target.value = v;
                             });
                           }}
-                          className="min-w-0 flex-1 bg-transparent outline-none focus:bg-input rounded px-2 py-1"
+                          className="min-w-0 flex-1 bg-transparent outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
                         />
                         <div className="flex flex-col shrink-0">
                           <button
@@ -1503,7 +1503,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           value={e.type}
                           onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
                           aria-label={`Type for ${e.title}`}
-                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
+                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
                         >
                           {TYPES.map((t) => (
                             <option key={t} value={t} className="bg-card">
@@ -1515,7 +1515,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           value={e.status}
                           onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
                           aria-label={`Status for ${e.title}`}
-                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
+                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
                         >
                           {STATUSES.map((s) => (
                             <option key={s} value={s} className="bg-card">
@@ -1536,11 +1536,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                               const chapter = Number(ev.target.value) || 0;
                               if (chapter !== e.chapter) void update(e.id, { chapter });
                             }}
-                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
                           />
                           <button
                             onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
-                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium shadow-sm transition-all duration-150 hover:brightness-105 active:scale-[0.94]"
                           >
                             +1
                           </button>
@@ -1556,11 +1556,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                               const reread = Number(ev.target.value) || 0;
                               if (reread !== e.reread) void update(e.id, { reread });
                             }}
-                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
                           />
                           <button
                             onClick={() => void update(e.id, { reread: e.reread + 1 })}
-                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium shadow-sm transition-all duration-150 hover:brightness-105 active:scale-[0.94]"
                           >
                             +1
                           </button>
@@ -1611,7 +1611,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       setDragId(null);
                       setDragOverId(null);
                     }}
-                    className={`border-t border-border hover:bg-muted/40 group ${statusRowBorder(e.status)} ${
+                    className={`border-t border-border transition-colors duration-150 hover:bg-muted/40 group ${statusRowBorder(e.status)} ${
                       dragId === e.id ? "opacity-50" : ""
                     } ${dragOverId === e.id && dragId && dragId !== e.id ? "outline outline-2 outline-primary -outline-offset-2" : ""}`}
                   >
@@ -1647,10 +1647,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         <img
                           src={e.cover_url}
                           alt=""
-                          className="h-24 w-16 rounded-md object-cover bg-muted"
+                          className="h-24 w-16 rounded-md object-cover bg-muted shadow-sm ring-1 ring-border/50 transition-transform duration-200 group-hover:scale-[1.03]"
                         />
                       ) : (
-                        <div className="h-24 w-16 rounded-md bg-muted" />
+                        <div className="h-24 w-16 rounded-md bg-muted shadow-sm ring-1 ring-border/50" />
                       )}
                     </td>
                     <td className="px-4 py-1.5">
@@ -1664,7 +1664,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                                  ev.target.value = v;
                                });
                              }}
-                            className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
+                            className="w-full bg-transparent outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
                           />
                           <div className="px-2">
                             <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
@@ -1677,7 +1677,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         value={e.type}
                          onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
                         aria-label={`Type for ${e.title}`}
-                        className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
+                        className="w-full bg-transparent rounded px-2 py-1 outline-none cursor-pointer transition-all duration-150 hover:bg-input focus:ring-2 focus:ring-ring/50"
                       >
                         {TYPES.map((t) => (
                           <option key={t} value={t} className="bg-card">
@@ -1696,7 +1696,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                              const chapter = Number(ev.target.value) || 0;
                              if (chapter !== e.chapter) void update(e.id, { chapter });
                            }}
-                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
+                          className="w-16 bg-transparent text-right outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
                         />
                         <button
                            onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
@@ -1714,7 +1714,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                            void update(e.id, { status: ev.target.value as EntryStatus })
                         }
                         aria-label={`Status for ${e.title}`}
-                        className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
+                        className="w-full bg-transparent rounded px-2 py-1 outline-none cursor-pointer transition-all duration-150 hover:bg-input focus:ring-2 focus:ring-ring/50"
                       >
                         {STATUSES.map((s) => (
                           <option key={s} value={s} className="bg-card">
@@ -1733,7 +1733,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                              const reread = Number(ev.target.value) || 0;
                              if (reread !== e.reread) void update(e.id, { reread });
                            }}
-                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
+                          className="w-16 bg-transparent text-right outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
                         />
                         <button
                            onClick={() => void update(e.id, { reread: e.reread + 1 })}
@@ -1784,7 +1784,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <button
                 onClick={() => setPanelOpen(false)}
                 aria-label="Close bulk import panel"
-                className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+                className="h-7 w-7 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1800,7 +1800,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <div className="flex gap-2">
               <button
                 onClick={runImport}
-                className="flex-1 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
+                className="flex-1 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97]"
               >
                 Import
               </button>
@@ -1837,7 +1837,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </button>
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex-1 h-9 rounded-md border border-border text-sm hover:bg-muted"
+              className="flex-1 h-9 rounded-md border border-border text-sm shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md active:scale-[0.97]"
             >
               Load .txt
             </button>
@@ -1917,15 +1917,15 @@ function SearchDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
-      <div className="w-full max-w-md max-h-[85dvh] flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4 animate-overlay-in">
+      <div className="w-full max-w-md max-h-[85dvh] flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-2xl animate-panel-in">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Search & add a title</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground transition-all duration-150 hover:text-foreground hover:bg-muted active:scale-90"
           >
             <X className="h-4 w-4" />
           </button>
@@ -1935,7 +1935,7 @@ function SearchDialog({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search manga, manhwa, manhua…"
-          className="h-10 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="h-10 px-3 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
         />
         <p className="text-[11px] text-muted-foreground -mt-1">
           Powered by AniList, MyAnimeList &amp; Kitsu.
@@ -1955,7 +1955,7 @@ function SearchDialog({
           {results.map((r) => (
             <div
               key={`${r.source ?? "anilist"}-${r.id}`}
-              className="flex items-center gap-3 rounded-md border border-border p-2 hover:bg-muted/40"
+              className="flex items-center gap-3 rounded-md border border-border p-2 transition-colors duration-150 hover:bg-muted/40 hover:border-ring/30"
             >
               {r.coverUrl ? (
                 <img
@@ -1978,7 +1978,7 @@ function SearchDialog({
               <button
                 onClick={() => void handleAdd(r)}
                 disabled={addingId === r.id}
-                className="shrink-0 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50"
+                className="shrink-0 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
               >
                 {addingId === r.id ? "Adding…" : "Add"}
               </button>
@@ -2003,9 +2003,9 @@ function ChapterProgress({ chapter, total }: { chapter: number; total: number | 
   const pct = Math.min(100, Math.round((chapter / total) * 100));
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden shadow-inner">
         <div
-          className="h-full rounded-full bg-primary transition-[width]"
+          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out shadow-[0_0_6px_var(--primary)]"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -2110,10 +2110,10 @@ function ProfileDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4 animate-overlay-in">
       <form
         onSubmit={save}
-        className="w-full max-w-sm flex flex-col gap-3 rounded-lg border border-border bg-card p-5"
+        className="w-full max-w-sm flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-2xl animate-panel-in"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Your profile</h2>
@@ -2121,7 +2121,7 @@ function ProfileDialog({
             type="button"
             onClick={onClose}
             aria-label="Close profile"
-            className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
+            className="h-7 w-7 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
           >
             <X className="h-4 w-4" />
           </button>
@@ -2134,7 +2134,7 @@ function ProfileDialog({
           disabled={loading}
           maxLength={40}
           placeholder={loading ? "Loading…" : "your name"}
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
         />
 
         <label className="text-xs text-muted-foreground">Email</label>
@@ -2142,7 +2142,7 @@ function ProfileDialog({
           type="email"
           value={newEmail}
           onChange={(e) => setNewEmail(e.target.value)}
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="h-9 px-3 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
         />
 
         <label className="text-xs text-muted-foreground">New password</label>
@@ -2152,7 +2152,7 @@ function ProfileDialog({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Leave blank to keep current"
-            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
           />
           <button
             type="button"
@@ -2168,7 +2168,7 @@ function ProfileDialog({
         <button
           type="submit"
           disabled={busy || loading}
-          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
         >
           {busy ? "Saving…" : "Save changes"}
         </button>
@@ -2206,7 +2206,7 @@ function SortTh({
       <button
         type="button"
         onClick={() => onClick(k)}
-        className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-foreground transition ${
+        className={`inline-flex items-center gap-1 uppercase tracking-wide rounded transition-all duration-150 hover:text-foreground hover:-translate-y-px ${
           align === "right" ? "justify-end w-full" : ""
         } ${active ? "text-foreground" : ""}`}
       >
@@ -2247,7 +2247,9 @@ function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
           ? "bg-cancelled/25"
           : "bg-finished/15";
   return (
-    <span className={`px-2 py-1 rounded-full font-medium ${bg} ${statusColorClasses(status)}`}>
+    <span
+      className={`px-2 py-1 rounded-full font-medium ring-1 ring-inset ring-current/15 shadow-sm transition-transform duration-150 hover:scale-[1.04] ${bg} ${statusColorClasses(status)}`}
+    >
       {count} {status}
     </span>
   );
