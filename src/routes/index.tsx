@@ -400,7 +400,7 @@ function AuthPanel() {
               {[
                 { icon: BookOpen, title: "One list, every series", desc: "Manga, manhwa, manhua, and comics — all in one place." },
                 { icon: RefreshCw, title: "Synced everywhere", desc: "Pick up on your phone right where your laptop left off." },
-                { icon: Sparkles, title: "Fast, focused tracking", desc: "No clutter. Just your list, your pace, your progress." },
+                { icon: Sparkles, title: "Fast, focused tracking", desc: "Just your list, your pace, your progress." },
               ].map((f) => (
                 <div key={f.title} className="flex items-start gap-3.5">
                   <div className="mt-0.5 h-8 w-8 shrink-0 rounded-lg bg-secondary border border-border/60 grid place-items-center">
@@ -415,7 +415,7 @@ function AuthPanel() {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground/70">Private by default. Your list, your account.</p>
+          <p className="text-xs text-muted-foreground/70">Your list, your account.</p>
         </div>
 
         {/* Right / form panel */}
