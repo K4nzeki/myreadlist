@@ -637,6 +637,9 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [toolbarHidden, setToolbarHidden] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
@@ -810,6 +813,17 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   };
 
   const sortValue = sortKey ? `${sortKey}:${sortDir}` : "";
+
+  const handleListScroll = useCallback((ev: React.UIEvent<HTMLDivElement>) => {
+    const y = ev.currentTarget.scrollTop;
+    const delta = y - lastScrollY.current;
+    // Ignore tiny jitters and the elastic overscroll near the very top.
+    if (Math.abs(delta) > 4) {
+      if (y <= 8) setToolbarHidden(false);
+      else setToolbarHidden(delta > 0);
+      lastScrollY.current = y;
+    }
+  }, []);
   const applySortValue = (v: string) => {
     if (!v) {
       setSortKey(null);
@@ -1381,7 +1395,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       <main id="main-content" className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
-          <div className="flex flex-col gap-2 px-3 sm:px-4 py-2.5 border-b border-border bg-card/30 sm:flex-row sm:flex-wrap sm:items-center">
+          <div
+            className={`flex flex-col gap-2 px-3 sm:px-4 border-b border-border bg-card/30 sm:flex-row sm:flex-wrap sm:items-center overflow-hidden transition-[max-height,opacity,padding,border-color] duration-300 ease-in-out ${
+              toolbarHidden
+                ? "max-h-0 opacity-0 py-0 border-transparent pointer-events-none"
+                : "max-h-40 opacity-100 py-2.5"
+            }`}
+          >
             <div className="relative w-full sm:flex-1 sm:min-w-[8rem]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <input
@@ -1457,7 +1477,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b">
+          <div
+            ref={scrollRef}
+            onScroll={handleListScroll}
+            className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b"
+          >
             {/* Mobile card list */}
             <ul className="md:hidden divide-y divide-border">
               {filtered.length === 0 && (
