@@ -400,8 +400,8 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
   const [filter, setFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
@@ -1136,6 +1136,8 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 aria-label="Sort"
               >
                 <option value="">My Order</option>
+                <option value="created_at:desc">Newly Added</option>
+                <option value="created_at:asc">Oldest Added</option>
                 <option value="title:asc">Title A → Z</option>
                 <option value="title:desc">Title Z → A</option>
                 <option value="chapter:desc">Chapter High → Low</option>
