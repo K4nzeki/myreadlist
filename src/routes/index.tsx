@@ -1188,7 +1188,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto scroll-touch safe-b">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b">
             {/* Mobile card list */}
             <ul className="md:hidden divide-y divide-border">
               {filtered.length === 0 && (
@@ -1205,10 +1205,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <img
                         src={e.cover_url}
                         alt=""
-                        className="w-24 shrink-0 rounded-md object-cover bg-muted"
+                        className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
                       />
                     ) : (
-                      <div className="w-24 shrink-0 rounded-md bg-muted" />
+                      <div className="w-20 sm:w-24 shrink-0 rounded-md bg-muted" />
                     )}
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
@@ -1259,7 +1259,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           value={e.type}
                           onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
                           aria-label={`Type for ${e.title}`}
-                          className="h-10 rounded-md bg-input px-2 outline-none"
+                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
                         >
                           {TYPES.map((t) => (
                             <option key={t} value={t} className="bg-card">
@@ -1271,7 +1271,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           value={e.status}
                           onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
                           aria-label={`Status for ${e.title}`}
-                          className="h-10 rounded-md bg-input px-2 outline-none"
+                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
                         >
                           {STATUSES.map((s) => (
                             <option key={s} value={s} className="bg-card">
