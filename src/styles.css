@@ -144,14 +144,10 @@
   --sidebar-ring: oklch(0.8 0.16 75);
 }
 
-/* Smooth, but only for theme-relevant properties — avoids the "everything
-   transitions" jank on unrelated layout/animation changes. */
-* {
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-}
+/* Note: intentionally NOT transitioning color/background on `*` — with a
+   large entries table that means animating hundreds of DOM nodes at once
+   on every theme toggle, which is what was causing the lag. Instant
+   theme switching feels snappier here than a laggy fade. */
 
 @layer base {
   * {
