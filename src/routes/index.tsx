@@ -400,7 +400,7 @@ function AuthPanel() {
               {[
                 { icon: BookOpen, title: "One list, every series", desc: "Manga, manhwa, manhua, and comics — all in one place." },
                 { icon: RefreshCw, title: "Synced everywhere", desc: "Pick up on your phone right where your laptop left off." },
-                { icon: Sparkles, title: "Fast, focused tracking", desc: "Just your list, your pace, your progress." },
+                { icon: Sparkles, title: "Fast, focused tracking", desc: "No clutter. Just your list, your pace, your progress." },
               ].map((f) => (
                 <div key={f.title} className="flex items-start gap-3.5">
                   <div className="mt-0.5 h-8 w-8 shrink-0 rounded-lg bg-secondary border border-border/60 grid place-items-center">
@@ -415,7 +415,7 @@ function AuthPanel() {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground/70">Your list, your account.</p>
+          <p className="text-xs text-muted-foreground/70">Private by default. Your list, your account.</p>
         </div>
 
         {/* Right / form panel */}
@@ -1242,65 +1242,86 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         </div>
       )}
       {/* Header + stats */}
-      <header className="border-b border-border px-3 sm:px-6 py-2 sm:py-3 flex items-center gap-3 sm:gap-6 flex-wrap">
-        <div className="flex items-baseline gap-2 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">
-            <span className="text-primary">Panels</span>
-          </h1>
-          <span className="hidden sm:inline text-xs text-muted-foreground">reading tracker</span>
-        </div>
+      <header className="relative border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col gap-3 overflow-hidden">
+        <div className="pointer-events-none absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-primary/10 blur-[100px]" />
 
-        <button
-          onClick={toggleTheme}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          className="ml-auto order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
-        >
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
-
-        <button
-          onClick={() => setPanelOpen((v) => !v)}
-          aria-label="Toggle bulk import panel"
-          aria-expanded={panelOpen}
-          className="order-1 lg:order-none shrink-0 h-9 w-9 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
-        >
-          {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-        </button>
-
-        <div className="flex items-center gap-3 sm:gap-5 flex-wrap text-sm w-full lg:w-auto lg:ml-auto order-2 lg:order-none">
-          <Stat label="Chapters" value={stats.chapters.toLocaleString()} big />
-          <Stat label="Titles" value={stats.total} />
-          <Stat label="Rereads" value={stats.rereads} />
-          <div className="h-8 w-px bg-border hidden sm:block" />
-          <div className="hidden sm:flex gap-3 text-xs">
-            {TYPES.map((t) => (
-              <span key={t} className="text-muted-foreground">
-                <span className="text-foreground font-semibold">{stats.types[t]}</span> {t}
-              </span>
-            ))}
+        {/* Top row: brand + primary nav */}
+        <div className="relative flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 grid place-items-center shrink-0">
+              <Layers className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex items-baseline gap-2 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primary leading-none">Panels</h1>
+              <span className="hidden sm:inline text-xs text-muted-foreground">reading tracker</span>
+            </div>
           </div>
-          <div className="h-8 w-px bg-border hidden sm:block" />
-          <div className="flex gap-2 text-xs flex-wrap">
-            {STATUSES.map((s) => (
-              <StatusPill key={s} status={s} count={stats.statuses[s]} />
-            ))}
-          </div>
-          <div className="h-8 w-px bg-border hidden sm:block" />
-          <div className="flex items-center gap-2 text-xs ml-auto lg:ml-0">
-            <span className="text-muted-foreground hidden sm:inline">
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <span className="hidden lg:inline text-xs text-muted-foreground mr-1.5 whitespace-nowrap">
               {timeGreeting()}
               {username ? `, ${username}` : ""}
             </span>
             <button
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="shrink-0 h-9 w-9 grid place-items-center rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => setPanelOpen((v) => !v)}
+              aria-label="Toggle bulk import panel"
+              aria-expanded={panelOpen}
+              className={`shrink-0 h-9 w-9 grid place-items-center rounded-lg border transition-colors ${
+                panelOpen
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border hover:bg-secondary hover:border-primary/30"
+              }`}
+            >
+              {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Stat cards row */}
+        <div className="relative flex items-stretch gap-2 overflow-x-auto no-scrollbar">
+          <StatCard icon={BookOpen} label="Chapters" value={stats.chapters.toLocaleString()} accent="primary" />
+          <StatCard icon={Layers} label="Titles" value={stats.total} />
+          <StatCard icon={RefreshCw} label="Rereads" value={stats.rereads} />
+          <div className="hidden md:flex items-center gap-1.5 px-3 rounded-lg border border-border/70 bg-card/40 shrink-0">
+            {TYPES.map((t, i) => (
+              <span key={t} className="text-xs whitespace-nowrap">
+                {i > 0 && <span className="text-border mr-1.5">·</span>}
+                <span className="text-foreground font-semibold">{stats.types[t]}</span>{" "}
+                <span className="text-muted-foreground">{t}</span>
+              </span>
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {STATUSES.map((s) => (
+              <StatusPill key={s} status={s} count={stats.statuses[s]} />
+            ))}
+          </div>
+        </div>
+
+        {/* Action row */}
+        <div className="relative flex items-center gap-1.5 flex-wrap">
+          <span className="lg:hidden text-xs text-muted-foreground mr-1">
+            {timeGreeting()}
+            {username ? `, ${username}` : ""}
+          </span>
+          <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+            <button
               onClick={() => setProfileOpen(true)}
-              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5"
+              className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
             >
               <User className="h-3.5 w-3.5" />
               Profile
             </button>
             <button
               onClick={() => setStatsDialogOpen(true)}
-              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5"
+              className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
             >
               <BarChart3 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Statistics</span>
@@ -1308,24 +1329,25 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <button
               onClick={() => void backfillCovers()}
               disabled={backfilling}
-              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5 disabled:opacity-60"
+              className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 disabled:opacity-60 text-xs font-medium"
               title="Fetch missing covers from AniList"
             >
+              {backfilling ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">
                 {backfilling ? "Fetching covers…" : "Fetch covers"}
               </span>
-              <span className="sm:hidden">{backfilling ? "…" : "Covers"}</span>
+              <span className="sm:hidden">Covers</span>
             </button>
             <Link
               to="/users"
-              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] inline-flex items-center gap-1.5"
+              className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
             >
               <User className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Browse Users</span>
             </Link>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="h-8 px-3 rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
+              className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors text-xs font-medium"
             >
               Sign out
             </button>
@@ -1359,23 +1381,26 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       <main id="main-content" className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
-          <div className="flex flex-col gap-2 px-3 sm:px-4 py-2 border-b border-border sm:flex-row sm:flex-wrap sm:items-center">
-            <input
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter…"
-              className="w-full sm:flex-1 sm:min-w-[8rem] h-9 px-3 rounded-md bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
-            />
+          <div className="flex flex-col gap-2 px-3 sm:px-4 py-2.5 border-b border-border bg-card/30 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="relative w-full sm:flex-1 sm:min-w-[8rem]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter your list…"
+                className="w-full h-9 pl-9 pr-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+              />
+            </div>
             {!canReorder && (
               <span className="text-xs text-muted-foreground order-last sm:order-none w-full sm:w-auto">
                 Clear filters &amp; sorting to drag-reorder titles
               </span>
             )}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               <select
                 value={sortValue}
                 onChange={(e) => applySortValue(e.target.value)}
-                className="h-9 px-2 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105 cursor-pointer shrink-0 max-w-[9rem]"
+                className="h-9 px-2.5 rounded-lg bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[9rem] transition-colors"
                 title="Sort"
                 aria-label="Sort"
               >
@@ -1390,7 +1415,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                className="h-9 px-2 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105 cursor-pointer shrink-0 max-w-[7.5rem]"
+                className="h-9 px-2.5 rounded-lg bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[7.5rem] transition-colors"
                 title="Filter by type"
                 aria-label="Filter by type"
               >
@@ -1404,7 +1429,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                className="h-9 px-2 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105 cursor-pointer shrink-0 max-w-[8rem]"
+                className="h-9 px-2.5 rounded-lg bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[8rem] transition-colors"
                 title="Filter by status"
                 aria-label="Filter by status"
               >
@@ -1417,7 +1442,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               </select>
               <button
                 onClick={() => setSearchDialogOpen(true)}
-                className="h-9 px-3 rounded-md border border-border text-sm font-medium shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97] shrink-0 inline-flex items-center gap-1.5"
+                className="h-9 px-3 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors shrink-0 inline-flex items-center gap-1.5"
                 title="Search & add by title"
               >
                 <Search className="h-3.5 w-3.5" />
@@ -1425,7 +1450,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               </button>
               <button
                 onClick={addBlank}
-                className="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97] shrink-0"
+                className="h-9 px-3.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all shrink-0 shadow-sm shadow-primary/20"
               >
                 +<span className="hidden sm:inline"> Add</span>
               </button>
@@ -1449,10 +1474,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       <img
                         src={e.cover_url}
                         alt=""
-                        className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted shadow-sm ring-1 ring-border/50"
+                        className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
                       />
                     ) : (
-                      <div className="w-20 sm:w-24 shrink-0 rounded-md bg-muted shadow-sm ring-1 ring-border/50" />
+                      <div className="w-20 sm:w-24 shrink-0 rounded-md bg-muted" />
                     )}
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
@@ -1464,7 +1489,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                               ev.target.value = v;
                             });
                           }}
-                          className="min-w-0 flex-1 bg-transparent outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
+                          className="min-w-0 flex-1 bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                         />
                         <div className="flex flex-col shrink-0">
                           <button
@@ -1503,7 +1528,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           value={e.type}
                           onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
                           aria-label={`Type for ${e.title}`}
-                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
+                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
                         >
                           {TYPES.map((t) => (
                             <option key={t} value={t} className="bg-card">
@@ -1515,7 +1540,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           value={e.status}
                           onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
                           aria-label={`Status for ${e.title}`}
-                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
+                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
                         >
                           {STATUSES.map((s) => (
                             <option key={s} value={s} className="bg-card">
@@ -1536,11 +1561,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                               const chapter = Number(ev.target.value) || 0;
                               if (chapter !== e.chapter) void update(e.id, { chapter });
                             }}
-                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
+                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
                           />
                           <button
                             onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
-                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium shadow-sm transition-all duration-150 hover:brightness-105 active:scale-[0.94]"
+                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
                           >
                             +1
                           </button>
@@ -1556,11 +1581,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                               const reread = Number(ev.target.value) || 0;
                               if (reread !== e.reread) void update(e.id, { reread });
                             }}
-                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md"
+                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
                           />
                           <button
                             onClick={() => void update(e.id, { reread: e.reread + 1 })}
-                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium shadow-sm transition-all duration-150 hover:brightness-105 active:scale-[0.94]"
+                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
                           >
                             +1
                           </button>
@@ -1574,7 +1599,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </ul>
 
             <table className="hidden md:table w-full min-w-[620px] text-sm">
-              <thead className="sticky top-0 bg-card text-xs uppercase tracking-wide text-muted-foreground z-10">
+              <thead className="sticky top-0 bg-card/95 backdrop-blur-sm text-xs uppercase tracking-wide text-muted-foreground z-10 border-b border-border shadow-sm shadow-black/5">
                 <tr>
                   <th className="w-8"></th>
                   <th className="w-12"></th>
@@ -1611,7 +1636,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                       setDragId(null);
                       setDragOverId(null);
                     }}
-                    className={`border-t border-border transition-colors duration-150 hover:bg-muted/40 group ${statusRowBorder(e.status)} ${
+                    className={`border-t border-border hover:bg-secondary/50 transition-colors group ${statusRowBorder(e.status)} ${
                       dragId === e.id ? "opacity-50" : ""
                     } ${dragOverId === e.id && dragId && dragId !== e.id ? "outline outline-2 outline-primary -outline-offset-2" : ""}`}
                   >
@@ -1647,10 +1672,12 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         <img
                           src={e.cover_url}
                           alt=""
-                          className="h-24 w-16 rounded-md object-cover bg-muted shadow-sm ring-1 ring-border/50 transition-transform duration-200 group-hover:scale-[1.03]"
+                          className="h-24 w-16 rounded-lg object-cover bg-muted shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
                         />
                       ) : (
-                        <div className="h-24 w-16 rounded-md bg-muted shadow-sm ring-1 ring-border/50" />
+                        <div className="h-24 w-16 rounded-lg bg-muted grid place-items-center">
+                          <BookOpen className="h-5 w-5 text-muted-foreground/40" />
+                        </div>
                       )}
                     </td>
                     <td className="px-4 py-1.5">
@@ -1664,7 +1691,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                                  ev.target.value = v;
                                });
                              }}
-                            className="w-full bg-transparent outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
+                            className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                           />
                           <div className="px-2">
                             <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
@@ -1677,7 +1704,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         value={e.type}
                          onChange={(ev) => void update(e.id, { type: ev.target.value as EntryType })}
                         aria-label={`Type for ${e.title}`}
-                        className="w-full bg-transparent rounded px-2 py-1 outline-none cursor-pointer transition-all duration-150 hover:bg-input focus:ring-2 focus:ring-ring/50"
+                        className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
                       >
                         {TYPES.map((t) => (
                           <option key={t} value={t} className="bg-card">
@@ -1696,7 +1723,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                              const chapter = Number(ev.target.value) || 0;
                              if (chapter !== e.chapter) void update(e.id, { chapter });
                            }}
-                          className="w-16 bg-transparent text-right outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
+                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
                         />
                         <button
                            onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
@@ -1714,7 +1741,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                            void update(e.id, { status: ev.target.value as EntryStatus })
                         }
                         aria-label={`Status for ${e.title}`}
-                        className="w-full bg-transparent rounded px-2 py-1 outline-none cursor-pointer transition-all duration-150 hover:bg-input focus:ring-2 focus:ring-ring/50"
+                        className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
                       >
                         {STATUSES.map((s) => (
                           <option key={s} value={s} className="bg-card">
@@ -1733,7 +1760,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                              const reread = Number(ev.target.value) || 0;
                              if (reread !== e.reread) void update(e.id, { reread });
                            }}
-                          className="w-16 bg-transparent text-right outline-none rounded px-2 py-1 transition-all duration-150 focus:bg-input focus:ring-2 focus:ring-ring/50 focus:shadow-sm"
+                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
                         />
                         <button
                            onClick={() => void update(e.id, { reread: e.reread + 1 })}
@@ -1784,7 +1811,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <button
                 onClick={() => setPanelOpen(false)}
                 aria-label="Close bulk import panel"
-                className="h-7 w-7 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
+                className="h-7 w-7 grid place-items-center rounded-md border border-border hover:bg-muted"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1800,7 +1827,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <div className="flex gap-2">
               <button
                 onClick={runImport}
-                className="flex-1 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97]"
+                className="flex-1 h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:opacity-90"
               >
                 Import
               </button>
@@ -1837,7 +1864,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </button>
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex-1 h-9 rounded-md border border-border text-sm shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md active:scale-[0.97]"
+              className="flex-1 h-9 rounded-md border border-border text-sm hover:bg-muted"
             >
               Load .txt
             </button>
@@ -1917,15 +1944,15 @@ function SearchDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4 animate-overlay-in">
-      <div className="w-full max-w-md max-h-[85dvh] flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-2xl animate-panel-in">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-4">
+      <div className="w-full max-w-md max-h-[85dvh] flex flex-col gap-3 rounded-lg border border-border bg-card p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Search & add a title</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground transition-all duration-150 hover:text-foreground hover:bg-muted active:scale-90"
+            className="h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <X className="h-4 w-4" />
           </button>
@@ -1935,7 +1962,7 @@ function SearchDialog({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search manga, manhwa, manhua…"
-          className="h-10 px-3 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
+          className="h-10 px-3 rounded-md bg-input text-sm outline-none focus:ring-2 focus:ring-ring"
         />
         <p className="text-[11px] text-muted-foreground -mt-1">
           Powered by AniList, MyAnimeList &amp; Kitsu.
@@ -1955,7 +1982,7 @@ function SearchDialog({
           {results.map((r) => (
             <div
               key={`${r.source ?? "anilist"}-${r.id}`}
-              className="flex items-center gap-3 rounded-md border border-border p-2 transition-colors duration-150 hover:bg-muted/40 hover:border-ring/30"
+              className="flex items-center gap-3 rounded-md border border-border p-2 hover:bg-muted/40"
             >
               {r.coverUrl ? (
                 <img
@@ -1978,7 +2005,7 @@ function SearchDialog({
               <button
                 onClick={() => void handleAdd(r)}
                 disabled={addingId === r.id}
-                className="shrink-0 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+                className="shrink-0 h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 disabled:opacity-50"
               >
                 {addingId === r.id ? "Adding…" : "Add"}
               </button>
@@ -2003,9 +2030,9 @@ function ChapterProgress({ chapter, total }: { chapter: number; total: number | 
   const pct = Math.min(100, Math.round((chapter / total) * 100));
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden shadow-inner">
+      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
         <div
-          className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out shadow-[0_0_6px_var(--primary)]"
+          className="h-full rounded-full bg-primary transition-[width]"
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -2016,19 +2043,40 @@ function ChapterProgress({ chapter, total }: { chapter: number; total: number | 
   );
 }
 
-function Stat({ label, value, big }: { label: string; value: string | number; big?: boolean }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: typeof BookOpen;
+  label: string;
+  value: string | number;
+  accent?: "primary";
+}) {
   return (
-    <div className="flex flex-col leading-tight">
-      <span
-        className={
-          big
-            ? "text-2xl font-bold text-primary tabular-nums"
-            : "text-lg font-semibold tabular-nums"
-        }
+    <div
+      className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border shrink-0 ${
+        accent === "primary"
+          ? "border-primary/30 bg-primary/10"
+          : "border-border/70 bg-card/40"
+      }`}
+    >
+      <div
+        className={`h-7 w-7 rounded-md grid place-items-center shrink-0 ${
+          accent === "primary" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
+        }`}
       >
-        {value}
-      </span>
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <div className="flex flex-col leading-tight">
+        <span className={`text-base font-bold tabular-nums ${accent === "primary" ? "text-primary" : ""}`}>
+          {value}
+        </span>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+          {label}
+        </span>
+      </div>
     </div>
   );
 }
@@ -2110,71 +2158,106 @@ function ProfileDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4 animate-overlay-in">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4">
       <form
         onSubmit={save}
-        className="w-full max-w-sm flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-2xl animate-panel-in"
+        className="w-full max-w-sm flex flex-col gap-4 rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/10 p-6"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Your profile</h2>
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 grid place-items-center">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-base font-semibold">Your profile</h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close profile"
-            className="h-7 w-7 grid place-items-center rounded-md border border-border shadow-sm transition-all duration-150 hover:bg-muted hover:shadow-md hover:border-ring/40 active:scale-[0.97]"
+            className="h-8 w-8 grid place-items-center rounded-lg border border-border hover:bg-secondary transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <label className="text-xs text-muted-foreground">Username</label>
-        <input
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          disabled={loading}
-          maxLength={40}
-          placeholder={loading ? "Loading…" : "your name"}
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
-        />
-
-        <label className="text-xs text-muted-foreground">Email</label>
-        <input
-          type="email"
-          value={newEmail}
-          onChange={(e) => setNewEmail(e.target.value)}
-          className="h-9 px-3 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
-        />
-
-        <label className="text-xs text-muted-foreground">New password</label>
-        <div className="relative">
-          <input
-            type={showPw ? "text" : "password"}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Leave blank to keep current"
-            className="w-full h-9 pl-3 pr-10 rounded-md bg-input text-sm outline-none shadow-sm transition-all duration-150 focus:ring-2 focus:ring-ring focus:shadow-md hover:brightness-105"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPw((v) => !v)}
-            aria-label={showPw ? "Hide password" : "Show password"}
-            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-8 grid place-items-center rounded text-muted-foreground hover:text-foreground"
-          >
-            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Username</label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
+              maxLength={40}
+              placeholder={loading ? "Loading…" : "your name"}
+              className="w-full h-11 pl-10 pr-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+            />
+          </div>
         </div>
 
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Email</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="w-full h-11 pl-10 pr-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground">New password</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type={showPw ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Leave blank to keep current"
+              className="w-full h-11 pl-10 pr-10 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+        </div>
 
         <button
           type="submit"
           disabled={busy || loading}
-          className="h-9 rounded-md bg-primary text-primary-foreground text-sm font-medium shadow-sm transition-all duration-150 hover:opacity-90 hover:shadow-md active:scale-[0.97] disabled:opacity-50 disabled:active:scale-100"
+          className="h-11 mt-1 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
         >
-          {busy ? "Saving…" : "Save changes"}
+          {busy ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Saving…
+            </>
+          ) : (
+            "Save changes"
+          )}
         </button>
         {msg && (
-          <div className={`text-xs ${msg.error ? "text-destructive" : "text-accent"}`}>
-            {msg.text}
+          <div
+            className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 text-xs ${
+              msg.error
+                ? "border-destructive/30 bg-destructive/10 text-destructive"
+                : "border-finished/30 bg-finished/10 text-finished"
+            }`}
+          >
+            {msg.error ? (
+              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            ) : (
+              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            )}
+            <span>{msg.text}</span>
           </div>
         )}
       </form>
@@ -2206,7 +2289,7 @@ function SortTh({
       <button
         type="button"
         onClick={() => onClick(k)}
-        className={`inline-flex items-center gap-1 uppercase tracking-wide rounded transition-all duration-150 hover:text-foreground hover:-translate-y-px ${
+        className={`inline-flex items-center gap-1 uppercase tracking-wide hover:text-foreground transition ${
           align === "right" ? "justify-end w-full" : ""
         } ${active ? "text-foreground" : ""}`}
       >
@@ -2240,15 +2323,15 @@ function statusRowBorder(status: EntryStatus) {
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
   const bg =
     status === "Ongoing"
-      ? "bg-ongoing/15"
+      ? "bg-ongoing/12 border-ongoing/30"
       : status === "Dropped"
-        ? "bg-dropped/15"
+        ? "bg-dropped/12 border-dropped/30"
         : status === "Cancelled"
-          ? "bg-cancelled/25"
-          : "bg-finished/15";
+          ? "bg-cancelled/20 border-border"
+          : "bg-finished/12 border-finished/30";
   return (
     <span
-      className={`px-2 py-1 rounded-full font-medium ring-1 ring-inset ring-current/15 shadow-sm transition-transform duration-150 hover:scale-[1.04] ${bg} ${statusColorClasses(status)}`}
+      className={`px-2.5 py-1 rounded-full font-semibold border whitespace-nowrap text-xs ${bg} ${statusColorClasses(status)}`}
     >
       {count} {status}
     </span>
