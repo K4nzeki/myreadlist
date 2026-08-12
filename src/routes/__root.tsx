@@ -135,8 +135,8 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   // Register the PWA service worker. Production-only and client-only so it
-  // never affects local dev or SSR, and never interferes with the regular
-  // website experience in a normal browser tab.
+  // never affects local dev or SSR. It caches the app shell and static
+  // assets for offline use — API calls to Supabase are left untouched.
   useEffect(() => {
     if (
       import.meta.env.PROD &&
