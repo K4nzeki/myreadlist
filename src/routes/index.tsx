@@ -41,6 +41,11 @@ export const Route = createFileRoute("/")({
 // constant so the row shape always matches the Entry type above.
 const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, position";
 
+// Matches an untouched auto-generated blank entry ("New title", "New title 2", …).
+// Shared by the blur-commit check, the sign-out sweep, and the tab/app-close sweep
+// below so all three agree on exactly what counts as "still a placeholder".
+const DEFAULT_TITLE_RE = /^New title( \d+)?$/i;
+
 // Time-of-day greeting for the header, based on the reader's local clock.
 function timeGreeting(): string {
   const h = new Date().getHours();
@@ -251,7 +256,13 @@ function Tracker() {
     return <SplashScreen />;
   }
   if (!session) return <AuthPanel />;
-  return <TrackerApp userId={session.user.id} email={session.user.email ?? ""} />;
+  return (
+    <TrackerApp
+      userId={session.user.id}
+      email={session.user.email ?? ""}
+      accessToken={session.access_token}
+    />
+  );
 }
 
 function SplashScreen() {
@@ -709,9 +720,27 @@ function AuthPanel() {
   );
 }
 
-function TrackerApp({ userId, email }: { userId: string; email: string }) {
+function TrackerApp({
+  userId,
+  email,
+  accessToken,
+}: {
+  userId: string;
+  email: string;
+  accessToken: string;
+}) {
   const [entries, setEntries] = useState<Entry[]>(() => loadCachedEntries(userId));
   const entriesRef = useRef<Entry[]>([]);
+  // Kept in sync with the latest access token so the tab/app-close sweep
+  // (below) can read it synchronously from an unload-type event, where
+  // there's no time to await supabase.auth.getSession().
+  const accessTokenRef = useRef(accessToken);
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+  }, [accessToken]);
+  // Tracks which entry's title input is currently focused, so the
+  // tab/app-close sweep never yanks away a title the user is mid-typing.
+  const focusedEntryIdRef = useRef<string | null>(null);
   const [_loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
@@ -1098,8 +1127,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   // piling up in the synced list just because someone added a title,
   // never named it, and left.
   const signOutAndCleanup = useCallback(async () => {
-    const isDefaultTitle = (title: string) => /^New title( \d+)?$/i.test(title.trim());
-    const stale = entriesRef.current.filter((e) => isDefaultTitle(e.title));
+    const stale = entriesRef.current.filter((e) => DEFAULT_TITLE_RE.test(e.title.trim()));
     if (stale.length > 0) {
       const ids = stale.map((e) => e.id);
       const { error } = await supabase
@@ -1116,6 +1144,68 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     await supabase.auth.signOut();
   }, [userId]);
 
+  // Same sweep as signOutAndCleanup, but fired when the tab/app is closed,
+  // refreshed, or backgrounded — not just on an explicit sign-out. Skips
+  // whichever entry is currently focused so it never deletes a title the
+  // user is actively mid-typing.
+  //
+  // Uses a raw `fetch` with `keepalive: true` (rather than the supabase-js
+  // client) because a normal request gets cancelled the instant the page
+  // actually unloads — keepalive requests are allowed to finish in the
+  // background even after the tab is gone. It can't be awaited from here,
+  // so this is best-effort: any row it misses just gets cleaned up next
+  // time (on the next sign-out, or the next time this sweep runs).
+  const sweepStaleTitles = useCallback(() => {
+    const stale = entriesRef.current.filter(
+      (e) => DEFAULT_TITLE_RE.test(e.title.trim()) && e.id !== focusedEntryIdRef.current,
+    );
+    if (stale.length === 0) return;
+    const ids = stale.map((e) => e.id);
+
+    // Remove locally right away — if the tab is actually closing there's
+    // no later moment to update state, so don't wait on the network call.
+    setEntries((prev) => prev.filter((e) => !ids.includes(e.id)));
+
+    const token = accessTokenRef.current;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+    if (!token || !supabaseUrl || !supabaseKey) return;
+
+    const idFilter = ids.map((id) => `"${id}"`).join(",");
+    const url = `${supabaseUrl}/rest/v1/entries?id=in.(${idFilter})&user_id=eq.${userId}`;
+    try {
+      void fetch(url, {
+        method: "DELETE",
+        keepalive: true,
+        headers: {
+          apikey: supabaseKey,
+          Authorization: `Bearer ${token}`,
+          Prefer: "return=minimal",
+        },
+      }).catch(() => {
+        /* best-effort — a missed sweep just leaves the row for next time */
+      });
+    } catch {
+      /* some browsers throw synchronously if the keepalive payload/queue
+         is over budget — nothing to do but let it go */
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") sweepStaleTitles();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    // `pagehide` catches actual navigation/close on browsers where
+    // visibilitychange fires late or not at all; calling the sweep twice
+    // is harmless since deleting an already-deleted id is a no-op.
+    window.addEventListener("pagehide", sweepStaleTitles);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", sweepStaleTitles);
+    };
+  }, [sweepStaleTitles]);
+
   const commitTitleEdit = useCallback(
     async (entry: Entry, rawTitle: string, revert: (value: string) => void) => {
       const title = rawTitle.trim();
@@ -1124,7 +1214,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         toast.error("A title cannot be empty");
         return;
       }
-      const isDefaultTitle = /^New title( \d+)?$/i.test(title);
+      const isDefaultTitle = DEFAULT_TITLE_RE.test(title);
       if (title === entry.title) {
         if (isDefaultTitle) {
           void remove(entry.id, "Removed — left as \"New title\"");
@@ -1807,7 +1897,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                         <input
                           key={`${e.id}-${e.title}`}
                           defaultValue={e.title}
+                          onFocus={() => {
+                            focusedEntryIdRef.current = e.id;
+                          }}
                           onBlur={(ev) => {
+                            if (focusedEntryIdRef.current === e.id) focusedEntryIdRef.current = null;
                             void commitTitleEdit(e, ev.target.value, (v) => {
                               ev.target.value = v;
                             });
@@ -2019,7 +2113,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                           <input
                              key={`${e.id}-${e.title}`}
                              defaultValue={e.title}
+                             onFocus={() => {
+                               focusedEntryIdRef.current = e.id;
+                             }}
                              onBlur={(ev) => {
+                               if (focusedEntryIdRef.current === e.id) focusedEntryIdRef.current = null;
                                void commitTitleEdit(e, ev.target.value, (v) => {
                                  ev.target.value = v;
                                });
