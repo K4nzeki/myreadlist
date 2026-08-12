@@ -22,12 +22,12 @@ describe("normalizeType", () => {
 
 describe("normalizeStatus", () => {
   it("matches case-insensitively", () => {
-    expect(normalizeStatus("ongoing")).toBe("Ongoing");
+    expect(normalizeStatus("reading")).toBe("Reading");
     expect(normalizeStatus("FINISHED")).toBe("Finished");
   });
 
   it("returns null for an unknown status", () => {
-    expect(normalizeStatus("Reading")).toBeNull();
+    expect(normalizeStatus("Ongoing")).toBeNull();
   });
 });
 
@@ -48,7 +48,7 @@ describe("parsePipeLine", () => {
 
   it("returns null for an unknown type or status", () => {
     expect(parsePipeLine("Title | 1 | Finished | Novel | 0")).toBeNull();
-    expect(parsePipeLine("Title | 1 | Reading | Manga | 0")).toBeNull();
+    expect(parsePipeLine("Title | 1 | Ongoing | Manga | 0")).toBeNull();
   });
 
   it("returns null for non-numeric chapter or reread", () => {
@@ -63,11 +63,11 @@ describe("parsePipeLine", () => {
 
 describe("parseSpaceLine", () => {
   it("parses a well-formed space-delimited line with a multi-word title", () => {
-    expect(parseSpaceLine("One Piece 1100 Ongoing Manga 0")).toEqual({
+    expect(parseSpaceLine("One Piece 1100 Reading Manga 0")).toEqual({
       entry: {
         title: "One Piece",
         chapter: 1100,
-        status: "Ongoing",
+        status: "Reading",
         type: "Manga",
         reread: 0,
       },
@@ -85,7 +85,7 @@ describe("parseSpaceLine", () => {
   });
 
   it("errors on an unknown status", () => {
-    expect(parseSpaceLine("Title 1 Reading Manga 0").error).toMatch(/unknown status/);
+    expect(parseSpaceLine("Title 1 Ongoing Manga 0").error).toMatch(/unknown status/);
   });
 
   it("errors on a non-numeric chapter", () => {
