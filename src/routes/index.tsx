@@ -1590,13 +1590,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 + Add
               </button>
             </div>
-
-            {!canReorder && (
-              <span className="text-xs text-muted-foreground w-full sm:w-auto sm:order-last text-center sm:text-left">
-                Clear filters &amp; sorting to drag-reorder titles
-              </span>
-            )}
-
             {/* Desktop / tablet: original inline row */}
             <div className="hidden sm:flex flex-wrap items-center gap-1.5">
               <select
