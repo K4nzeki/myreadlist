@@ -150,7 +150,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      leaderboard_stats: {
+        Row: {
+          user_id: string
+          username: string | null
+          total_chapters: number
+          total_series: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       username_available: {
