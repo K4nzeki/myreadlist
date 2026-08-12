@@ -29,7 +29,7 @@ export const Route = createFileRoute("/")({
       { title: "Panels — Synced Reading Tracker" },
       { name: "description", content: "Track and sync manga, manhwa, manhua, and comics across your devices." },
       { property: "og:title", content: "Panels — Synced Reading Tracker" },
-      { property: "og:description", content: "A private reading tracker that keeps your progress synced across devices." },
+      { property: "og:description", content: "A reading tracker that keeps your progress synced across devices and shareable with fellow readers." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -446,7 +446,7 @@ function AuthPanel() {
             </h2>
             <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
               Track manga, manhwa, manhua, and comics across every device. Panels keeps your
-              progress synced, private, and effortless.
+              progress synced, shareable, and effortless.
             </p>
 
             <div className="mt-10 space-y-5">
@@ -468,7 +468,7 @@ function AuthPanel() {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground/70">Private by default. Your list, your account.</p>
+          <p className="text-xs text-muted-foreground/70">Public by default. Your list, your account.</p>
         </div>
 
         {/* Right / form panel */}
@@ -700,7 +700,7 @@ function AuthPanel() {
             </div>
 
             <p className="text-center text-[11px] text-muted-foreground/60 mt-6">
-              Private by default — synced only to your account.
+              Public by default — anyone can view your list, only you can edit it.
             </p>
           </div>
         </div>
