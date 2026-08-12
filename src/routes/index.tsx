@@ -1514,46 +1514,57 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
             {/* Mobile: sort/type/status as an evenly-sized grid */}
             <div className="grid grid-cols-3 gap-1.5 w-full min-w-0 sm:hidden">
-              <select
-                value={sortValue}
-                onChange={(e) => applySortValue(e.target.value)}
-                className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
-                aria-label="Sort"
-              >
-                <option value="">My Order</option>
-                <option value="created_at:desc">Newly Added</option>
-                <option value="created_at:asc">Oldest Added</option>
-                <option value="title:asc">Title A → Z</option>
-                <option value="title:desc">Title Z → A</option>
-                <option value="chapter:desc">Ch. High → Low</option>
-                <option value="chapter:asc">Ch. Low → High</option>
-              </select>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
-                aria-label="Filter by type"
-              >
-                <option value="">Types</option>
-                {TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
-                aria-label="Filter by status"
-              >
-                <option value="">Status</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              {/* Each select is wrapped in a min-w-0 div because some mobile
+                  browsers (notably iOS Safari) ignore min-width overrides on
+                  <select> itself, letting it overflow its grid track. The
+                  wrapper div shrinks correctly and the select's w-full then
+                  resolves against that already-shrunk box. */}
+              <div className="min-w-0">
+                <select
+                  value={sortValue}
+                  onChange={(e) => applySortValue(e.target.value)}
+                  className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  aria-label="Sort"
+                >
+                  <option value="">My Order</option>
+                  <option value="created_at:desc">Newly Added</option>
+                  <option value="created_at:asc">Oldest Added</option>
+                  <option value="title:asc">Title A → Z</option>
+                  <option value="title:desc">Title Z → A</option>
+                  <option value="chapter:desc">Ch. High → Low</option>
+                  <option value="chapter:asc">Ch. Low → High</option>
+                </select>
+              </div>
+              <div className="min-w-0">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
+                  className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  aria-label="Filter by type"
+                >
+                  <option value="">Types</option>
+                  {TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="min-w-0">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+                  className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  aria-label="Filter by status"
+                >
+                  <option value="">Status</option>
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Mobile: search + add as full-width buttons */}
