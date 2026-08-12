@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Search, User } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Loader2, Search, User, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/u/$userId")({
@@ -50,68 +50,127 @@ function initials(name: string) {
   return name.trim().slice(0, 2).toUpperCase() || "?";
 }
 
+const PAGE_SIZE = 24;
+
 function PublicList() {
   const { userId } = Route.useParams();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
   const [filter, setFilter] = useState("");
+  const [debouncedFilter, setDebouncedFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
   const [sortKey, setSortKey] = useState<SortKey | null>("created_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
+  const [statusCounts, setStatusCounts] = useState<Record<EntryStatus, number>>({
+    Ongoing: 0,
+    Dropped: 0,
+    Cancelled: 0,
+    Finished: 0,
+  });
+
+  // Debounce the free-text search so we don't refetch on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedFilter(filter.trim()), 300);
+    return () => clearTimeout(t);
+  }, [filter]);
+
+  // Username + per-status counts: cheap, fetched once (counts use head:true so no rows come back).
   useEffect(() => {
     (async () => {
-      const [{ data: profile }, { data: rows }] = await Promise.all([
-        supabase.from("profiles").select("username").eq("id", userId).maybeSingle(),
-        supabase
-          .from("entries")
-          .select("id, title, type, chapter, status, cover_url, created_at")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false }),
-      ]);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", userId)
+        .maybeSingle();
       setUsername(profile?.username ?? "Unknown user");
-      setEntries((rows ?? []) as Entry[]);
-      setLoading(false);
+
+      const counts = await Promise.all(
+        STATUSES.map((s) =>
+          supabase
+            .from("entries")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", userId)
+            .eq("status", s)
+        )
+      );
+      setStatusCounts({
+        Ongoing: counts[0].count ?? 0,
+        Dropped: counts[1].count ?? 0,
+        Cancelled: counts[2].count ?? 0,
+        Finished: counts[3].count ?? 0,
+      });
     })();
   }, [userId]);
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<EntryStatus, number> = { Ongoing: 0, Dropped: 0, Cancelled: 0, Finished: 0 };
-    for (const e of entries) counts[e.status]++;
-    return counts;
-  }, [entries]);
+  const requestId = useRef(0);
 
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    const list = entries.filter((e) => {
-      if (typeFilter && e.type !== typeFilter) return false;
-      if (statusFilter && e.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        e.title.toLowerCase().includes(q) ||
-        e.type.toLowerCase().includes(q) ||
-        e.status.toLowerCase().includes(q)
-      );
-    });
+  const buildQuery = useCallback(
+    (from: number, to: number) => {
+      let q = supabase
+        .from("entries")
+        .select("id, title, type, chapter, status, cover_url, created_at", { count: "exact" })
+        .eq("user_id", userId);
 
-    if (sortKey) {
-      list.sort((a, b) => {
-        let cmp = 0;
-        if (sortKey === "chapter") {
-          cmp = (a[sortKey] ?? 0) - (b[sortKey] ?? 0);
-        } else {
-          cmp = String(a[sortKey]).localeCompare(String(b[sortKey]));
-        }
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-    } else {
-      list.sort((a, b) => a.title.localeCompare(b.title));
-    }
-    return list;
-  }, [entries, filter, typeFilter, statusFilter, sortKey, sortDir]);
+      if (typeFilter) q = q.eq("type", typeFilter);
+      if (statusFilter) q = q.eq("status", statusFilter);
+      if (debouncedFilter) q = q.ilike("title", `%${debouncedFilter}%`);
+
+      const col = sortKey ?? "title";
+      q = q.order(col, { ascending: sortKey ? sortDir === "asc" : true });
+      if (sortKey === "title") q = q.order("id", { ascending: true });
+
+      return q.range(from, to);
+    },
+    [userId, typeFilter, statusFilter, debouncedFilter, sortKey, sortDir]
+  );
+
+  // Fetch just the first page whenever filters/sort change; a fresh page replaces the list.
+  useEffect(() => {
+    if (!userId) return;
+    const myId = ++requestId.current;
+    setLoading(true);
+    (async () => {
+      const { data, count } = await buildQuery(0, PAGE_SIZE - 1);
+      if (myId !== requestId.current) return; // a newer request superseded this one
+      setEntries((data ?? []) as Entry[]);
+      setTotalCount(count ?? 0);
+      setHasMore((count ?? 0) > (data?.length ?? 0));
+      setLoading(false);
+    })();
+  }, [buildQuery, userId]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || loading || !hasMore) return;
+    const myId = requestId.current;
+    setLoadingMore(true);
+    const { data } = await buildQuery(entries.length, entries.length + PAGE_SIZE - 1);
+    if (myId !== requestId.current) return; // filters changed mid-flight; drop this page
+    setEntries((prev) => [...prev, ...((data ?? []) as Entry[])]);
+    setHasMore((data?.length ?? 0) === PAGE_SIZE);
+    setLoadingMore(false);
+  }, [buildQuery, entries.length, hasMore, loading, loadingMore]);
+
+  // Infinite scroll: load the next page only once the sentinel row scrolls into view.
+  const sentinelRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entriesObserved) => {
+        if (entriesObserved[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   function toggleSort(key: SortKey) {
     if (sortKey !== key) {
@@ -171,12 +230,12 @@ function PublicList() {
           <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight truncate">{username}'s list</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {loading ? "Loading…" : `${entries.length} titles`}
+              {loading ? "Loading…" : `${totalCount ?? entries.length} titles`}
             </p>
           </div>
         </div>
 
-        {!loading && entries.length > 0 && (
+        {!loading && (totalCount ?? 0) > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-1.5">
             {STATUSES.map((s) => (
               <span
@@ -196,8 +255,18 @@ function PublicList() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search titles…"
-              className="w-full h-10 pl-9 pr-3 rounded-lg border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all"
+              className="w-full h-10 pl-9 pr-8 rounded-lg border border-border bg-card text-sm outline-none focus:ring-2 focus:ring-ring/40 focus:border-primary/40 transition-all"
             />
+            {filter && (
+              <button
+                type="button"
+                onClick={() => setFilter("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
           </div>
           <select
             value={typeFilter}
@@ -219,6 +288,19 @@ function PublicList() {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+          {(filter || typeFilter || statusFilter) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFilter("");
+                setTypeFilter("");
+                setStatusFilter("");
+              }}
+              className="h-10 px-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
 
         <div className="mt-4 overflow-hidden rounded-xl border border-border/80 bg-card/40">
@@ -247,7 +329,7 @@ function PublicList() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
-                  {filtered.map((e) => (
+                  {entries.map((e) => (
                     <tr key={e.id} className={`group hover:bg-secondary/40 transition-colors ${rowBorder(e.status)}`}>
                       <td className="px-3 py-2">
                         <a
@@ -284,7 +366,7 @@ function PublicList() {
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && (
+                  {entries.length === 0 && (
                     <tr>
                       <td colSpan={5} className="px-3 py-16 text-center">
                         <div className="flex flex-col items-center gap-2">
@@ -292,9 +374,29 @@ function PublicList() {
                             <User className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            {entries.length === 0 ? "This list is empty." : "No titles match your filters."}
+                            {(totalCount ?? 0) === 0 ? "This list is empty." : "No titles match your filters."}
                           </p>
                         </div>
+                      </td>
+                    </tr>
+                  )}
+                  {hasMore && entries.length > 0 && (
+                    <tr ref={sentinelRef}>
+                      <td colSpan={5} className="px-3 py-4 text-center">
+                        {loadingMore ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Loading more…
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={loadMore}
+                            className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            Load more
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )}
