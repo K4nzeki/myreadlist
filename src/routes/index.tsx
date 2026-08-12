@@ -1512,14 +1512,17 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               />
             </div>
 
-            {/* Mobile: sort/type/status as an evenly-sized grid */}
-            <div className="grid grid-cols-3 gap-1.5 w-full min-w-0 sm:hidden">
-              {/* Each select is wrapped in a min-w-0 div because some mobile
-                  browsers (notably iOS Safari) ignore min-width overrides on
-                  <select> itself, letting it overflow its grid track. The
-                  wrapper div shrinks correctly and the select's w-full then
-                  resolves against that already-shrunk box. */}
-              <div className="min-w-0">
+            {/* Mobile: sort/type/status as an evenly-sized row.
+                Uses flex + flex-1 basis-0 + min-w-0 rather than CSS grid:
+                native <select> elements carry their own intrinsic content
+                width, and on mobile browsers that width can win out over a
+                grid track's minmax(0,1fr) sizing, pushing the last column
+                past the edge of the screen. flex-1 basis-0 forces all three
+                to share the row equally regardless of their own content,
+                and min-w-0 on every level (row, wrapper, select) is what
+                actually lets each one shrink below that content width. */}
+            <div className="flex gap-1.5 w-full min-w-0 sm:hidden">
+              <div className="flex-1 basis-0 min-w-0">
                 <select
                   value={sortValue}
                   onChange={(e) => applySortValue(e.target.value)}
@@ -1535,7 +1538,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                   <option value="chapter:asc">Ch. Low → High</option>
                 </select>
               </div>
-              <div className="min-w-0">
+              <div className="flex-1 basis-0 min-w-0">
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
@@ -1550,7 +1553,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                   ))}
                 </select>
               </div>
-              <div className="min-w-0">
+              <div className="flex-1 basis-0 min-w-0">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
