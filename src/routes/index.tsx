@@ -1091,6 +1091,31 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
     toast.success(message);
   };
 
+  // Sign out, but first sweep away any entries that were left with the
+  // untouched default "New title" / "New title 2" name — same rule used
+  // when a title field is blurred without being renamed (see
+  // commitTitleEdit below). This stops blank placeholder rows from
+  // piling up in the synced list just because someone added a title,
+  // never named it, and left.
+  const signOutAndCleanup = useCallback(async () => {
+    const isDefaultTitle = (title: string) => /^New title( \d+)?$/i.test(title.trim());
+    const stale = entriesRef.current.filter((e) => isDefaultTitle(e.title));
+    if (stale.length > 0) {
+      const ids = stale.map((e) => e.id);
+      const { error } = await supabase
+        .from("entries")
+        .delete()
+        .in("id", ids)
+        .eq("user_id", userId);
+      if (!error) {
+        setEntries((prev) => prev.filter((e) => !ids.includes(e.id)));
+      }
+      // Don't block sign-out on cleanup failing — worst case the stale
+      // rows are still there next time the user logs in.
+    }
+    await supabase.auth.signOut();
+  }, [userId]);
+
   const commitTitleEdit = useCallback(
     async (entry: Entry, rawTitle: string, revert: (value: string) => void) => {
       const title = rawTitle.trim();
@@ -1515,7 +1540,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 Import
               </button>
               <button
-                onClick={() => supabase.auth.signOut()}
+                onClick={() => void signOutAndCleanup()}
                 className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
               >
                 <X className="h-4 w-4" />
@@ -1560,7 +1585,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <span className="hidden sm:inline">Browse Users</span>
             </Link>
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => void signOutAndCleanup()}
               className="h-8 px-3 rounded-lg border border-border text-muted-foreground hover:bg-destructive/10 hover:border-destructive/30 hover:text-destructive transition-colors text-xs font-medium"
             >
               Sign out
