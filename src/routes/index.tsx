@@ -6,6 +6,7 @@ import { AlertCircle, ArrowRight, BarChart3, BookOpen, CheckCircle2, ChevronDown
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
+import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import {
   TYPES,
   STATUSES,
@@ -627,7 +628,7 @@ function AuthPanel() {
 }
 
 function TrackerApp({ userId, email }: { userId: string; email: string }) {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<Entry[]>(() => loadCachedEntries(userId));
   const entriesRef = useRef<Entry[]>([]);
   const [_loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
@@ -687,6 +688,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
       reportDatabaseError("Loading your list", error);
     } else if (data) {
       setEntries(data as Entry[]);
+      saveCachedEntries(userId, data as Entry[]);
       setSyncError(null);
     }
     setLoading(false);
