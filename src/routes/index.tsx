@@ -875,9 +875,9 @@ function TrackerApp({
       total: entries.length,
       rereads: 0,
       types: { Manga: 0, Manhwa: 0, Manhua: 0, Comic: 0 } as Record<EntryType, number>,
-      statuses: { Ongoing: 0, Dropped: 0, Cancelled: 0, Finished: 0 } as Record<EntryStatus, number>,
+      statuses: { Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 } as Record<EntryStatus, number>,
       matrix: Object.fromEntries(
-        TYPES.map((t) => [t, { Ongoing: 0, Dropped: 0, Cancelled: 0, Finished: 0 }]),
+        TYPES.map((t) => [t, { Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 }]),
       ) as Record<EntryType, Record<EntryStatus, number>>,
     };
     for (const e of entries) {
@@ -1265,7 +1265,7 @@ function TrackerApp({
       title,
       type: result.type,
       chapter: 0,
-      status: "Ongoing",
+      status: "Reading",
       reread: 0,
       cover_url: result.coverUrl,
       author: result.author,
@@ -1295,7 +1295,7 @@ function TrackerApp({
     let title = "New title";
     let n = 2;
     while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
-    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Ongoing", reread: 0, position: nextTopPosition(entries) };
+    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Reading", reread: 0, position: nextTopPosition(entries) };
     const { data, error } = await supabase
       .from("entries")
       .insert(row)
@@ -2262,7 +2262,7 @@ function TrackerApp({
             <textarea
               value={importText}
               onChange={(e) => setImportText(e.target.value)}
-              placeholder={"Solo Leveling 179 Finished Manhwa 2\nOne Piece 1120 Ongoing Manga 0"}
+              placeholder={"Solo Leveling 179 Finished Manhwa 2\nOne Piece 1120 Reading Manga 0"}
               className="flex-1 min-h-0 resize-none bg-input rounded-md p-3 text-sm font-mono outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
             />
             <div className="flex gap-2">
@@ -2742,7 +2742,7 @@ function SortTh({
 }
 
 function statusColorClasses(status: EntryStatus) {
-  return status === "Ongoing"
+  return status === "Reading"
     ? "text-ongoing"
     : status === "Dropped"
       ? "text-dropped"
@@ -2752,7 +2752,7 @@ function statusColorClasses(status: EntryStatus) {
 }
 
 function statusRowBorder(status: EntryStatus) {
-  return status === "Ongoing"
+  return status === "Reading"
     ? "border-l-2 border-l-ongoing"
     : status === "Dropped"
       ? "border-l-2 border-l-dropped"
@@ -2763,7 +2763,7 @@ function statusRowBorder(status: EntryStatus) {
 
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
   const bg =
-    status === "Ongoing"
+    status === "Reading"
       ? "bg-ongoing/12 border-ongoing/30"
       : status === "Dropped"
         ? "bg-dropped/12 border-dropped/30"
