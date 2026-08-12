@@ -1513,11 +1513,11 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </div>
 
             {/* Mobile: sort/type/status as an evenly-sized grid */}
-            <div className="grid grid-cols-3 gap-1.5 w-full sm:hidden">
+            <div className="grid grid-cols-3 gap-1.5 w-full min-w-0 sm:hidden">
               <select
                 value={sortValue}
                 onChange={(e) => applySortValue(e.target.value)}
-                className="h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer w-full"
+                className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                 aria-label="Sort"
               >
                 <option value="">My Order</option>
@@ -1531,7 +1531,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                className="h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer w-full"
+                className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                 aria-label="Filter by type"
               >
                 <option value="">Types</option>
@@ -1544,7 +1544,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                className="h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer w-full"
+                className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                 aria-label="Filter by status"
               >
                 <option value="">Status</option>
