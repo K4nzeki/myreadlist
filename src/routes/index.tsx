@@ -1513,20 +1513,18 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             </div>
 
             {/* Mobile: sort/type/status as an evenly-sized row.
-                Uses flex + flex-1 basis-0 + min-w-0 rather than CSS grid:
-                native <select> elements carry their own intrinsic content
-                width, and on mobile browsers that width can win out over a
-                grid track's minmax(0,1fr) sizing, pushing the last column
-                past the edge of the screen. flex-1 basis-0 forces all three
-                to share the row equally regardless of their own content,
-                and min-w-0 on every level (row, wrapper, select) is what
-                actually lets each one shrink below that content width. */}
-            <div className="flex gap-1.5 w-full min-w-0 sm:hidden">
-              <div className="flex-1 basis-0 min-w-0">
+                appearance-none + a small custom chevron (instead of each
+                phone's native dropdown arrow, which eats 20-30px per
+                select) reclaims width so all three comfortably fit one
+                row without getting clipped. flex-1 basis-0 + min-w-0 keeps
+                them equal width and able to shrink below their own
+                content's natural size. */}
+            <div className="flex gap-1 w-full min-w-0 sm:hidden">
+              <div className="relative flex-1 basis-0 min-w-0">
                 <select
                   value={sortValue}
                   onChange={(e) => applySortValue(e.target.value)}
-                  className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  className="appearance-none min-w-0 w-full h-9 pl-2 pr-4 rounded-lg bg-input border border-transparent text-[11px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                   aria-label="Sort"
                 >
                   <option value="">My Order</option>
@@ -1537,12 +1535,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                   <option value="chapter:desc">Ch. High → Low</option>
                   <option value="chapter:asc">Ch. Low → High</option>
                 </select>
+                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               </div>
-              <div className="flex-1 basis-0 min-w-0">
+              <div className="relative flex-1 basis-0 min-w-0">
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                  className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  className="appearance-none min-w-0 w-full h-9 pl-2 pr-4 rounded-lg bg-input border border-transparent text-[11px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                   aria-label="Filter by type"
                 >
                   <option value="">Types</option>
@@ -1552,12 +1551,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               </div>
-              <div className="flex-1 basis-0 min-w-0">
+              <div className="relative flex-1 basis-0 min-w-0">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                  className="min-w-0 w-full h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  className="appearance-none min-w-0 w-full h-9 pl-2 pr-4 rounded-lg bg-input border border-transparent text-[11px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                   aria-label="Filter by status"
                 >
                   <option value="">Status</option>
@@ -1567,6 +1567,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     </option>
                   ))}
                 </select>
+                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
               </div>
             </div>
 
