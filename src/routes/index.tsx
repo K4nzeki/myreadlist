@@ -1348,8 +1348,8 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
           <div className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
         </div>
 
-        {/* Status pills — own wrapping row on mobile so they don't fight the stat-card scroller */}
-        <div className="sm:hidden flex items-center gap-1.5 flex-wrap">
+        {/* Status pills — own single-line row on mobile so they don't fight the stat-card scroller */}
+        <div className="sm:hidden flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar -mx-3 px-3">
           {STATUSES.map((s) => (
             <StatusPill key={s} status={s} count={stats.statuses[s]} />
           ))}
@@ -2518,7 +2518,7 @@ function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
           : "bg-finished/12 border-finished/30";
   return (
     <span
-      className={`px-2.5 py-1 rounded-full font-semibold border whitespace-nowrap text-xs ${bg} ${statusColorClasses(status)}`}
+      className={`px-2.5 py-1 rounded-full font-semibold border whitespace-nowrap text-xs shrink-0 ${bg} ${statusColorClasses(status)}`}
     >
       {count} {status}
     </span>
