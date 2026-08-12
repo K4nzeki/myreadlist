@@ -817,6 +817,17 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   const sortValue = sortKey ? `${sortKey}:${sortDir}` : "";
 
+  const INITIAL_VISIBLE = 20;
+  const VISIBLE_STEP = 20;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [filter, typeFilter, statusFilter, sortKey, sortDir]);
+
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -834,11 +845,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         }
         lastScrollY.current = y;
         ticking = false;
+
+        const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+        if (remaining < 600) {
+          setVisibleCount((c) => (c < filtered.length ? c + VISIBLE_STEP : c));
+        }
       });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [_loading]);
+  }, [_loading, filtered.length]);
   const applySortValue = (v: string) => {
     if (!v) {
       setSortKey(null);
@@ -1667,7 +1683,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     : "Nothing matches that filter."}
                 </li>
               )}
-              {filtered.map((e) => (
+              {visible.map((e) => (
                 <li key={e.id} className={`px-3 py-3 ${statusRowBorder(e.status)}`}>
                   <div className="flex items-stretch gap-3">
                     {e.cover_url ? (
@@ -1797,6 +1813,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 </li>
               ))}
             </ul>
+            {hasMore && (
+              <div className="md:hidden px-4 py-4 flex justify-center">
+                <button
+                  onClick={() => setVisibleCount((c) => c + VISIBLE_STEP)}
+                  className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors"
+                >
+                  Load more ({filtered.length - visibleCount} left)
+                </button>
+              </div>
+            )}
 
             <table className="hidden md:table w-full min-w-[620px] text-sm">
               <thead className="sticky top-0 bg-card/95 backdrop-blur-sm text-xs uppercase tracking-wide text-muted-foreground z-10 border-b border-border shadow-sm shadow-black/5">
@@ -1821,7 +1847,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     </td>
                   </tr>
                 )}
-                {filtered.map((e) => (
+                {visible.map((e) => (
                   <tr
                     key={e.id}
                     onDragOver={(ev) => {
@@ -1987,6 +2013,16 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 ))}
               </tbody>
             </table>
+            {hasMore && (
+              <div className="hidden md:flex px-4 py-4 justify-center">
+                <button
+                  onClick={() => setVisibleCount((c) => c + VISIBLE_STEP)}
+                  className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors"
+                >
+                  Load more ({filtered.length - visibleCount} left)
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
