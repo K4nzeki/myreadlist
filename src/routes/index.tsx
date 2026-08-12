@@ -288,6 +288,8 @@ function ListSkeleton() {
 
 function AuthPanel() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  // In signup mode this holds the account email. In signin mode it holds
+  // either a username or an email ("identifier").
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -298,11 +300,40 @@ function AuthPanel() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [pwFocused, setPwFocused] = useState(false);
   const [userFocused, setUserFocused] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">(
+    "idle",
+  );
 
   const emailTouched = email.length > 0;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const identifierValid = mode === "signup" ? emailValid : email.trim().length > 0;
   const pwTouched = password.length > 0;
   const pwValid = password.length >= 6;
+  const usernameValid = /^[a-zA-Z0-9_]{3,40}$/.test(username.trim());
+
+  // Debounced live availability check while typing a username at signup.
+  useEffect(() => {
+    if (mode !== "signup") return;
+    const uname = username.trim();
+    if (!uname) {
+      setUsernameStatus("idle");
+      return;
+    }
+    if (!usernameValid) {
+      setUsernameStatus("invalid");
+      return;
+    }
+    setUsernameStatus("checking");
+    const handle = setTimeout(async () => {
+      const { data, error } = await supabase.rpc("username_available", { p_username: uname });
+      if (error) {
+        setUsernameStatus("idle");
+        return;
+      }
+      setUsernameStatus(data ? "available" : "taken");
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [username, mode, usernameValid]);
 
   const pwStrength = useMemo(() => {
     if (!password) return 0;
@@ -329,19 +360,39 @@ function AuthPanel() {
     setMsg(null);
     try {
       if (mode === "signup") {
+        const uname = username.trim();
+        if (!usernameValid) {
+          throw new Error("Username must be 3-40 characters (letters, numbers, underscore).");
+        }
+        const { data: available, error: checkErr } = await supabase.rpc("username_available", {
+          p_username: uname,
+        });
+        if (checkErr) throw checkErr;
+        if (!available) throw new Error("That username is already taken.");
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { username: username.trim() },
+            data: { username: uname },
           },
         });
         if (error) throw error;
         setMsgKind("success");
         setMsg("Check your email to confirm, then sign in.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const raw = email.trim();
+        let loginEmail = raw;
+        if (!raw.includes("@")) {
+          const { data: resolvedEmail, error: rpcErr } = await supabase.rpc("email_for_username", {
+            p_username: raw,
+          });
+          if (rpcErr) throw rpcErr;
+          if (!resolvedEmail) throw new Error("Invalid login credentials");
+          loginEmail = resolvedEmail;
+        }
+        const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
         if (error) throw error;
       }
     } catch (err) {
@@ -355,6 +406,7 @@ function AuthPanel() {
   const switchMode = () => {
     setMode(mode === "signin" ? "signup" : "signin");
     setMsg(null);
+    setUsernameStatus("idle");
   };
 
   return (
@@ -444,34 +496,42 @@ function AuthPanel() {
               </div>
 
               <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-                {/* Email */}
+                {/* Email (signup) / Username-or-email (signin) */}
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="auth-email" className="text-xs font-medium text-muted-foreground">
-                    Email
+                    {mode === "signin" ? "Username or email" : "Email"}
                   </label>
                   <div className="relative">
-                    <Mail
-                      className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
-                        emailFocused ? "text-primary" : "text-muted-foreground"
-                      }`}
-                    />
+                    {mode === "signin" ? (
+                      <User
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+                          emailFocused ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
+                    ) : (
+                      <Mail
+                        className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+                          emailFocused ? "text-primary" : "text-muted-foreground"
+                        }`}
+                      />
+                    )}
                     <input
                       id="auth-email"
-                      type="email"
+                      type={mode === "signin" ? "text" : "email"}
                       required
-                      autoComplete="email"
+                      autoComplete={mode === "signin" ? "username" : "email"}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onFocus={() => setEmailFocused(true)}
                       onBlur={() => setEmailFocused(false)}
-                      placeholder="you@example.com"
+                      placeholder={mode === "signin" ? "you@example.com or panel_reader" : "you@example.com"}
                       className={`w-full h-11 pl-10 pr-9 rounded-lg bg-input text-sm outline-none border transition-all focus:ring-2 focus:ring-ring/40 ${
-                        emailTouched && !emailValid
+                        emailTouched && !identifierValid
                           ? "border-destructive/60"
                           : "border-transparent focus:border-primary/50"
                       }`}
                     />
-                    {emailTouched && (
+                    {emailTouched && mode === "signup" && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {emailValid ? (
                           <CheckCircle2 className="h-4 w-4 text-finished" />
@@ -487,7 +547,7 @@ function AuthPanel() {
                 {mode === "signup" && (
                   <div className="flex flex-col gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                     <label htmlFor="auth-username" className="text-xs font-medium text-muted-foreground">
-                      Username <span className="text-muted-foreground/60">(optional)</span>
+                      Username
                     </label>
                     <div className="relative">
                       <User
@@ -497,15 +557,37 @@ function AuthPanel() {
                       />
                       <input
                         id="auth-username"
+                        required
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         onFocus={() => setUserFocused(true)}
                         onBlur={() => setUserFocused(false)}
                         placeholder="e.g. panel_reader"
                         maxLength={40}
-                        className="w-full h-11 pl-10 pr-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+                        className={`w-full h-11 pl-10 pr-9 rounded-lg bg-input text-sm outline-none border transition-all focus:ring-2 focus:ring-ring/40 ${
+                          usernameStatus === "taken" || usernameStatus === "invalid"
+                            ? "border-destructive/60"
+                            : "border-transparent focus:border-primary/50"
+                        }`}
                       />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {usernameStatus === "checking" && (
+                          <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                        )}
+                        {usernameStatus === "available" && <CheckCircle2 className="h-4 w-4 text-finished" />}
+                        {(usernameStatus === "taken" || usernameStatus === "invalid") && (
+                          <AlertCircle className="h-4 w-4 text-destructive/70" />
+                        )}
+                      </div>
                     </div>
+                    {usernameStatus === "taken" && (
+                      <p className="text-[11px] text-destructive/80">That username is already taken.</p>
+                    )}
+                    {usernameStatus === "invalid" && (
+                      <p className="text-[11px] text-destructive/80">
+                        3-40 characters: letters, numbers, underscore.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -568,7 +650,7 @@ function AuthPanel() {
 
                 <button
                   type="submit"
-                  disabled={busy}
+                  disabled={busy || (mode === "signup" && (usernameStatus === "taken" || usernameStatus === "checking"))}
                   className="group h-11 mt-1 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:active:scale-100 transition-all flex items-center justify-center gap-1.5"
                 >
                   {busy ? (
