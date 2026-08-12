@@ -637,6 +637,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [panelOpen, setPanelOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [toolbarHidden, setToolbarHidden] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastScrollY = useRef(0);
@@ -1299,13 +1300,25 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               onClick={() => setPanelOpen((v) => !v)}
               aria-label="Toggle bulk import panel"
               aria-expanded={panelOpen}
-              className={`shrink-0 h-9 w-9 grid place-items-center rounded-lg border transition-colors ${
+              className={`hidden sm:grid shrink-0 h-9 w-9 place-items-center rounded-lg border transition-colors ${
                 panelOpen
                   ? "border-primary/40 bg-primary/10 text-primary"
                   : "border-border hover:bg-secondary hover:border-primary/30"
               }`}
             >
               {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => setMobileActionsOpen((v) => !v)}
+              aria-label="Toggle menu"
+              aria-expanded={mobileActionsOpen}
+              className={`sm:hidden shrink-0 h-9 w-9 grid place-items-center rounded-lg border transition-colors ${
+                mobileActionsOpen
+                  ? "border-primary/40 bg-primary/10 text-primary"
+                  : "border-border hover:bg-secondary hover:border-primary/30"
+              }`}
+            >
+              {mobileActionsOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -1349,44 +1362,56 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             {username ? `, ${username}` : ""}
           </span>
 
-          {/* Mobile: grid of evenly-sized action buttons with visible labels */}
-          <div className="grid grid-cols-3 gap-1.5 sm:hidden">
-            <button
-              onClick={() => setProfileOpen(true)}
-              className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-            >
-              <User className="h-4 w-4" />
-              Profile
-            </button>
-            <button
-              onClick={() => setStatsDialogOpen(true)}
-              className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Statistics
-            </button>
-            <button
-              onClick={() => void backfillCovers()}
-              disabled={backfilling}
-              className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors disabled:opacity-60 text-[11px] font-medium"
-            >
-              {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Covers
-            </button>
-            <Link
-              to="/users"
-              className="col-span-2 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-            >
-              <User className="h-3.5 w-3.5" />
-              Browse Users
-            </Link>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="flex items-center justify-center h-11 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
-            >
-              Sign out
-            </button>
-          </div>
+          {/* Mobile: actions revealed via the hamburger button */}
+          {mobileActionsOpen && (
+            <div className="grid grid-cols-3 gap-1.5 w-full sm:hidden animate-in fade-in slide-in-from-top-1 duration-200">
+              <button
+                onClick={() => {
+                  setProfileOpen(true);
+                  setMobileActionsOpen(false);
+                }}
+                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+              >
+                <User className="h-4 w-4" />
+                Profile
+              </button>
+              <button
+                onClick={() => {
+                  setStatsDialogOpen(true);
+                  setMobileActionsOpen(false);
+                }}
+                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Statistics
+              </button>
+              <button
+                onClick={() => {
+                  void backfillCovers();
+                  setMobileActionsOpen(false);
+                }}
+                disabled={backfilling}
+                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors disabled:opacity-60 text-[11px] font-medium"
+              >
+                {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Covers
+              </button>
+              <Link
+                to="/users"
+                onClick={() => setMobileActionsOpen(false)}
+                className="col-span-2 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+              >
+                <User className="h-3.5 w-3.5" />
+                Browse Users
+              </Link>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="flex items-center justify-center h-11 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
 
           {/* Desktop / tablet: inline buttons */}
           <div className="hidden sm:flex sm:ml-auto items-center gap-1.5 flex-wrap">
