@@ -1503,12 +1503,12 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             }`}
           >
             <div className="relative w-full sm:flex-1 sm:min-w-[8rem]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter your list…"
-                className="w-full h-10 sm:h-9 pl-9 pr-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+                className="w-full h-9 sm:h-9 pl-8 pr-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
               />
             </div>
 
@@ -1524,7 +1524,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 <select
                   value={sortValue}
                   onChange={(e) => applySortValue(e.target.value)}
-                  className="appearance-none min-w-0 w-full h-9 pl-2 pr-4 rounded-lg bg-input border border-transparent text-[11px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  className="appearance-none min-w-0 w-full h-8 pl-1.5 pr-3.5 rounded-lg bg-input border border-transparent text-[10px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                   aria-label="Sort"
                 >
                   <option value="">My Order</option>
@@ -1535,13 +1535,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                   <option value="chapter:desc">Ch. High → Low</option>
                   <option value="chapter:asc">Ch. Low → High</option>
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
               </div>
               <div className="relative flex-1 basis-0 min-w-0">
                 <select
                   value={typeFilter}
                   onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                  className="appearance-none min-w-0 w-full h-9 pl-2 pr-4 rounded-lg bg-input border border-transparent text-[11px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  className="appearance-none min-w-0 w-full h-8 pl-1.5 pr-3.5 rounded-lg bg-input border border-transparent text-[10px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                   aria-label="Filter by type"
                 >
                   <option value="">Types</option>
@@ -1551,13 +1551,13 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
               </div>
               <div className="relative flex-1 basis-0 min-w-0">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                  className="appearance-none min-w-0 w-full h-9 pl-2 pr-4 rounded-lg bg-input border border-transparent text-[11px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                  className="appearance-none min-w-0 w-full h-8 pl-1.5 pr-3.5 rounded-lg bg-input border border-transparent text-[10px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
                   aria-label="Filter by status"
                 >
                   <option value="">Status</option>
@@ -1567,7 +1567,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
               </div>
             </div>
 
@@ -1575,14 +1575,14 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
             <div className="grid grid-cols-2 gap-1.5 w-full sm:hidden">
               <button
                 onClick={() => setSearchDialogOpen(true)}
-                className="h-10 rounded-lg border border-border text-sm font-medium active:bg-secondary transition-colors inline-flex items-center justify-center gap-1.5"
+                className="h-9 rounded-lg border border-border text-xs font-medium active:bg-secondary transition-colors inline-flex items-center justify-center gap-1.5"
               >
                 <Search className="h-3.5 w-3.5" />
                 Search
               </button>
               <button
                 onClick={addBlank}
-                className="h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold active:opacity-90 transition-all shadow-sm shadow-primary/20"
+                className="h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold active:opacity-90 transition-all shadow-sm shadow-primary/20"
               >
                 + Add
               </button>
