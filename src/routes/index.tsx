@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { AlertCircle, ArrowRight, BarChart3, BookOpen, CheckCircle2, ChevronDown, ChevronUp, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Sun, User, X } from "lucide-react";
+import { AlertCircle, ArrowRight, BarChart3, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Sun, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
@@ -1399,15 +1399,26 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               <Link
                 to="/users"
                 onClick={() => setMobileActionsOpen(false)}
-                className="col-span-2 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
               >
-                <User className="h-3.5 w-3.5" />
+                <User className="h-4 w-4" />
                 Browse Users
               </Link>
               <button
-                onClick={() => supabase.auth.signOut()}
-                className="flex items-center justify-center h-11 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
+                onClick={() => {
+                  setPanelOpen(true);
+                  setMobileActionsOpen(false);
+                }}
+                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
               >
+                <ClipboardList className="h-4 w-4" />
+                Import
+              </button>
+              <button
+                onClick={() => supabase.auth.signOut()}
+                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
+              >
+                <X className="h-4 w-4" />
                 Sign out
               </button>
             </div>
