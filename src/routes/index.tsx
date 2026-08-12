@@ -814,16 +814,28 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
   const sortValue = sortKey ? `${sortKey}:${sortDir}` : "";
 
-  const handleListScroll = useCallback((ev: React.UIEvent<HTMLDivElement>) => {
-    const y = ev.currentTarget.scrollTop;
-    const delta = y - lastScrollY.current;
-    // Ignore tiny jitters and the elastic overscroll near the very top.
-    if (Math.abs(delta) > 4) {
-      if (y <= 8) setToolbarHidden(false);
-      else setToolbarHidden(delta > 0);
-      lastScrollY.current = y;
-    }
-  }, []);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = el.scrollTop;
+        const delta = y - lastScrollY.current;
+        if (y <= 8) {
+          setToolbarHidden(false);
+        } else if (Math.abs(delta) > 4) {
+          setToolbarHidden(delta > 0);
+        }
+        lastScrollY.current = y;
+        ticking = false;
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [_loading]);
   const applySortValue = (v: string) => {
     if (!v) {
       setSortKey(null);
@@ -1256,7 +1268,7 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         </div>
       )}
       {/* Header + stats */}
-      <header className="relative border-b border-border px-3 sm:px-6 py-3 sm:py-4 flex flex-col gap-3 overflow-hidden">
+      <header className="relative border-b border-border px-3 sm:px-6 py-4 sm:py-4 flex flex-col gap-3.5 sm:gap-3 overflow-hidden">
         <div className="pointer-events-none absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-primary/10 blur-[100px]" />
 
         {/* Top row: brand + primary nav */}
@@ -1299,33 +1311,85 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         </div>
 
         {/* Stat cards row */}
-        <div className="relative flex items-stretch gap-2 overflow-x-auto no-scrollbar">
-          <StatCard icon={BookOpen} label="Chapters" value={stats.chapters.toLocaleString()} accent="primary" />
-          <StatCard icon={Layers} label="Titles" value={stats.total} />
-          <StatCard icon={RefreshCw} label="Rereads" value={stats.rereads} />
-          <div className="hidden md:flex items-center gap-1.5 px-3 rounded-lg border border-border/70 bg-card/40 shrink-0">
-            {TYPES.map((t, i) => (
-              <span key={t} className="text-xs whitespace-nowrap">
-                {i > 0 && <span className="text-border mr-1.5">·</span>}
-                <span className="text-foreground font-semibold">{stats.types[t]}</span>{" "}
-                <span className="text-muted-foreground">{t}</span>
-              </span>
-            ))}
+        <div className="relative">
+          <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0">
+            <div className="snap-start"><StatCard icon={BookOpen} label="Chapters" value={stats.chapters.toLocaleString()} accent="primary" /></div>
+            <div className="snap-start"><StatCard icon={Layers} label="Titles" value={stats.total} /></div>
+            <div className="snap-start"><StatCard icon={RefreshCw} label="Rereads" value={stats.rereads} /></div>
+            <div className="hidden md:flex items-center gap-1.5 px-3 rounded-lg border border-border/70 bg-card/40 shrink-0">
+              {TYPES.map((t, i) => (
+                <span key={t} className="text-xs whitespace-nowrap">
+                  {i > 0 && <span className="text-border mr-1.5">·</span>}
+                  <span className="text-foreground font-semibold">{stats.types[t]}</span>{" "}
+                  <span className="text-muted-foreground">{t}</span>
+                </span>
+              ))}
+            </div>
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+              {STATUSES.map((s) => (
+                <StatusPill key={s} status={s} count={stats.statuses[s]} />
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {STATUSES.map((s) => (
-              <StatusPill key={s} status={s} count={stats.statuses[s]} />
-            ))}
-          </div>
+          {/* Edge fade hinting horizontal scroll, mobile only */}
+          <div className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
+        </div>
+
+        {/* Status pills — own wrapping row on mobile so they don't fight the stat-card scroller */}
+        <div className="sm:hidden flex items-center gap-1.5 flex-wrap">
+          {STATUSES.map((s) => (
+            <StatusPill key={s} status={s} count={stats.statuses[s]} />
+          ))}
         </div>
 
         {/* Action row */}
-        <div className="relative flex items-center gap-1.5 flex-wrap">
-          <span className="lg:hidden text-xs text-muted-foreground mr-1">
+        <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
+          <span className="text-xs text-muted-foreground lg:hidden">
             {timeGreeting()}
             {username ? `, ${username}` : ""}
           </span>
-          <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+
+          {/* Mobile: grid of evenly-sized action buttons with visible labels */}
+          <div className="grid grid-cols-3 gap-1.5 sm:hidden">
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+            >
+              <User className="h-4 w-4" />
+              Profile
+            </button>
+            <button
+              onClick={() => setStatsDialogOpen(true)}
+              className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Statistics
+            </button>
+            <button
+              onClick={() => void backfillCovers()}
+              disabled={backfilling}
+              className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors disabled:opacity-60 text-[11px] font-medium"
+            >
+              {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Covers
+            </button>
+            <Link
+              to="/users"
+              className="col-span-2 flex items-center justify-center gap-1.5 h-11 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
+            >
+              <User className="h-3.5 w-3.5" />
+              Browse Users
+            </Link>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="flex items-center justify-center h-11 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
+            >
+              Sign out
+            </button>
+          </div>
+
+          {/* Desktop / tablet: inline buttons */}
+          <div className="hidden sm:flex sm:ml-auto items-center gap-1.5 flex-wrap">
             <button
               onClick={() => setProfileOpen(true)}
               className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
@@ -1396,10 +1460,10 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
           <div
-            className={`flex flex-col gap-2 px-3 sm:px-4 border-b border-border bg-card/30 sm:flex-row sm:flex-wrap sm:items-center overflow-hidden transition-[max-height,opacity,padding,border-color] duration-300 ease-in-out ${
+            className={`flex flex-col gap-2.5 px-3 sm:px-4 border-b border-border bg-card/30 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 overflow-hidden transition-[max-height,opacity,padding,border-color] duration-300 ease-in-out ${
               toolbarHidden
                 ? "max-h-0 opacity-0 py-0 border-transparent pointer-events-none"
-                : "max-h-40 opacity-100 py-2.5"
+                : "max-h-64 sm:max-h-40 opacity-100 py-3 sm:py-2.5"
             }`}
           >
             <div className="relative w-full sm:flex-1 sm:min-w-[8rem]">
@@ -1408,15 +1472,79 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter your list…"
-                className="w-full h-9 pl-9 pr-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+                className="w-full h-10 sm:h-9 pl-9 pr-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
               />
             </div>
+
+            {/* Mobile: sort/type/status as an evenly-sized grid */}
+            <div className="grid grid-cols-3 gap-1.5 w-full sm:hidden">
+              <select
+                value={sortValue}
+                onChange={(e) => applySortValue(e.target.value)}
+                className="h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer w-full"
+                aria-label="Sort"
+              >
+                <option value="">My Order</option>
+                <option value="created_at:desc">Newly Added</option>
+                <option value="created_at:asc">Oldest Added</option>
+                <option value="title:asc">Title A → Z</option>
+                <option value="title:desc">Title Z → A</option>
+                <option value="chapter:desc">Ch. High → Low</option>
+                <option value="chapter:asc">Ch. Low → High</option>
+              </select>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
+                className="h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer w-full"
+                aria-label="Filter by type"
+              >
+                <option value="">Types</option>
+                {TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+                className="h-10 px-1.5 rounded-lg bg-input border border-transparent text-xs outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer w-full"
+                aria-label="Filter by status"
+              >
+                <option value="">Status</option>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Mobile: search + add as full-width buttons */}
+            <div className="grid grid-cols-2 gap-1.5 w-full sm:hidden">
+              <button
+                onClick={() => setSearchDialogOpen(true)}
+                className="h-10 rounded-lg border border-border text-sm font-medium active:bg-secondary transition-colors inline-flex items-center justify-center gap-1.5"
+              >
+                <Search className="h-3.5 w-3.5" />
+                Search
+              </button>
+              <button
+                onClick={addBlank}
+                className="h-10 rounded-lg bg-primary text-primary-foreground text-sm font-semibold active:opacity-90 transition-all shadow-sm shadow-primary/20"
+              >
+                + Add
+              </button>
+            </div>
+
             {!canReorder && (
-              <span className="text-xs text-muted-foreground order-last sm:order-none w-full sm:w-auto">
+              <span className="text-xs text-muted-foreground w-full sm:w-auto sm:order-last text-center sm:text-left">
                 Clear filters &amp; sorting to drag-reorder titles
               </span>
             )}
-            <div className="flex flex-wrap items-center gap-1.5">
+
+            {/* Desktop / tablet: original inline row */}
+            <div className="hidden sm:flex flex-wrap items-center gap-1.5">
               <select
                 value={sortValue}
                 onChange={(e) => applySortValue(e.target.value)}
@@ -1479,7 +1607,6 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
 
           <div
             ref={scrollRef}
-            onScroll={handleListScroll}
             className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b"
           >
             {/* Mobile card list */}
