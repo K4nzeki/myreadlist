@@ -1571,18 +1571,21 @@ function TrackerApp({ userId, email }: { userId: string; email: string }) {
               </div>
             </div>
 
-            {/* Mobile: search + add as full-width buttons */}
-            <div className="grid grid-cols-2 gap-1.5 w-full sm:hidden">
+            {/* Mobile: search + add, evenly split with the same flex-1
+                basis-0 approach used for the dropdowns above — more
+                reliable than grid-cols for guaranteeing neither button
+                extends past its half of the row. */}
+            <div className="flex gap-1.5 w-full min-w-0 sm:hidden">
               <button
                 onClick={() => setSearchDialogOpen(true)}
-                className="h-9 rounded-lg border border-border text-xs font-medium active:bg-secondary transition-colors inline-flex items-center justify-center gap-1.5"
+                className="flex-1 basis-0 min-w-0 h-9 rounded-lg border border-border text-xs font-medium active:bg-secondary transition-colors inline-flex items-center justify-center gap-1.5"
               >
                 <Search className="h-3.5 w-3.5" />
                 Search
               </button>
               <button
                 onClick={addBlank}
-                className="h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold active:opacity-90 transition-all shadow-sm shadow-primary/20"
+                className="flex-1 basis-0 min-w-0 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold active:opacity-90 transition-all shadow-sm shadow-primary/20"
               >
                 + Add
               </button>
