@@ -1290,11 +1290,23 @@ function TrackerApp({
     return false;
   };
 
-  const addBlank = async () => {
+  // Creates a new entry directly, skipping the AniList lookup. Used both
+  // for the "blank placeholder" quick-add (no title passed) and for the
+  // "can't find it on AniList, just add it" manual path in SearchDialog
+  // (title passed in from whatever the user typed in the search box).
+  const addBlank = async (rawTitle = "") => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
-    let title = "New title";
-    let n = 2;
-    while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
+    let title = rawTitle.trim();
+    if (title) {
+      if (taken.has(title.toLowerCase())) {
+        toast.error(`"${title}" is already in your list`);
+        return false;
+      }
+    } else {
+      title = "New title";
+      let n = 2;
+      while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
+    }
     const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Reading", reread: 0, position: nextTopPosition(entries) };
     const { data, error } = await supabase
       .from("entries")
@@ -1303,13 +1315,15 @@ function TrackerApp({
       .single();
     if (error) {
       reportDatabaseError("Adding a title", error);
-      return;
+      return false;
     }
     if (data) {
       setSyncError(null);
       setEntries((prev) => [data as Entry, ...prev]);
-      toast.success("Title saved to your synced list");
+      toast.success(DEFAULT_TITLE_RE.test(title) ? "Title saved to your synced list" : `"${title}" added`);
+      return true;
     }
+    return false;
   };
 
   const [backfilling, setBackfilling] = useState(false);
@@ -1542,8 +1556,8 @@ function TrackerApp({
         <div className="relative">
           <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0">
             <div className="snap-start"><StatCard icon={BookOpen} label="Chapters" value={stats.chapters.toLocaleString()} accent="primary" /></div>
-            <div className="snap-start"><StatCard icon={Layers} label="Titles" value={stats.total} /></div>
-            <div className="snap-start"><StatCard icon={RefreshCw} label="Rereads" value={stats.rereads} /></div>
+            <div className="snap-start"><StatCard icon={Layers} label="Titles" value={stats.total} accent="finished" /></div>
+            <div className="snap-start"><StatCard icon={RefreshCw} label="Rereads" value={stats.rereads} accent="ongoing" /></div>
             <div className="hidden md:flex items-center gap-1.5 px-3 rounded-lg border border-border/70 bg-card/40 shrink-0">
               {TYPES.map((t, i) => (
                 <span key={t} className="text-xs whitespace-nowrap">
@@ -1702,7 +1716,7 @@ function TrackerApp({
       )}
 
       {searchDialogOpen && (
-        <SearchDialog onAdd={addFromSearch} onClose={() => setSearchDialogOpen(false)} />
+        <SearchDialog onAdd={addFromSearch} onAddManual={addBlank} onClose={() => setSearchDialogOpen(false)} />
       )}
 
 
@@ -1718,12 +1732,12 @@ function TrackerApp({
             }`}
           >
             <div className="relative w-full sm:flex-1 sm:min-w-[8rem]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter your list…"
-                className="w-full h-9 sm:h-9 pl-8 pr-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+                className="w-full h-9 sm:h-9 pl-9 pr-3 rounded-full bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
               />
             </div>
 
@@ -1786,23 +1800,14 @@ function TrackerApp({
               </div>
             </div>
 
-            {/* Mobile: search + add, evenly split with the same flex-1
-                basis-0 approach used for the dropdowns above — more
-                reliable than grid-cols for guaranteeing neither button
-                extends past its half of the row. */}
+            {/* Mobile: single button opens the search-or-add-manually dialog. */}
             <div className="flex gap-1.5 w-full min-w-0 sm:hidden">
               <button
                 onClick={() => setSearchDialogOpen(true)}
-                className="flex-1 basis-0 min-w-0 h-9 rounded-lg border border-border text-xs font-medium active:bg-secondary transition-colors inline-flex items-center justify-center gap-1.5"
+                className="flex-1 basis-0 min-w-0 h-9 rounded-full bg-ongoing text-white dark:text-slate-950 text-xs font-semibold active:opacity-90 transition-all shadow-sm shadow-ongoing/30 inline-flex items-center justify-center gap-1.5"
               >
                 <Search className="h-3.5 w-3.5" />
-                Search
-              </button>
-              <button
-                onClick={addBlank}
-                className="flex-1 basis-0 min-w-0 h-9 rounded-lg bg-primary text-primary-foreground text-xs font-semibold active:opacity-90 transition-all shadow-sm shadow-primary/20"
-              >
-                + Add
+                + Add title
               </button>
             </div>
             {/* Desktop / tablet: original inline row */}
@@ -1810,7 +1815,7 @@ function TrackerApp({
               <select
                 value={sortValue}
                 onChange={(e) => applySortValue(e.target.value)}
-                className="h-9 px-2.5 rounded-lg bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[9rem] transition-colors"
+                className="h-9 px-3.5 rounded-full bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[9rem] transition-colors"
                 title="Sort"
                 aria-label="Sort"
               >
@@ -1825,7 +1830,7 @@ function TrackerApp({
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as EntryType | "")}
-                className="h-9 px-2.5 rounded-lg bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[7.5rem] transition-colors"
+                className="h-9 px-3.5 rounded-full bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[7.5rem] transition-colors"
                 title="Filter by type"
                 aria-label="Filter by type"
               >
@@ -1839,7 +1844,7 @@ function TrackerApp({
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                className="h-9 px-2.5 rounded-lg bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[8rem] transition-colors"
+                className="h-9 px-3.5 rounded-full bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[8rem] transition-colors"
                 title="Filter by status"
                 aria-label="Filter by status"
               >
@@ -1852,17 +1857,11 @@ function TrackerApp({
               </select>
               <button
                 onClick={() => setSearchDialogOpen(true)}
-                className="h-9 px-3 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors shrink-0 inline-flex items-center gap-1.5"
-                title="Search & add by title"
+                className="h-9 px-4 rounded-full bg-ongoing text-white dark:text-slate-950 text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all shrink-0 shadow-sm shadow-ongoing/30 inline-flex items-center gap-1.5"
+                title="Search & add a title"
               >
                 <Search className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Search</span>
-              </button>
-              <button
-                onClick={addBlank}
-                className="h-9 px-3.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all shrink-0 shadow-sm shadow-primary/20"
-              >
-                +<span className="hidden sm:inline"> Add</span>
+                <span className="hidden sm:inline">+ Add</span>
               </button>
             </div>
           </div>
@@ -1957,10 +1956,10 @@ function TrackerApp({
                           value={e.status}
                           onChange={(ev) => void update(e.id, { status: ev.target.value as EntryStatus })}
                           aria-label={`Status for ${e.title}`}
-                          className="h-10 w-full min-w-0 rounded-md bg-input px-2 outline-none"
+                          className={`h-10 w-full min-w-0 rounded-full px-3 outline-none font-semibold text-sm text-center appearance-none ${statusBadgeClasses(e.status)}`}
                         >
                           {STATUSES.map((s) => (
-                            <option key={s} value={s} className="bg-card">
+                            <option key={s} value={s} className="bg-card text-foreground">
                               {s}
                             </option>
                           ))}
@@ -2172,10 +2171,10 @@ function TrackerApp({
                            void update(e.id, { status: ev.target.value as EntryStatus })
                         }
                         aria-label={`Status for ${e.title}`}
-                        className="w-full bg-transparent hover:bg-input rounded px-2 py-1 outline-none cursor-pointer"
+                        className={`w-full rounded-full px-3 py-1.5 outline-none cursor-pointer font-semibold text-xs text-center appearance-none transition-colors ${statusBadgeClasses(e.status)}`}
                       >
                         {STATUSES.map((s) => (
-                          <option key={s} value={s} className="bg-card">
+                          <option key={s} value={s} className="bg-card text-foreground">
                             {s}
                           </option>
                         ))}
@@ -2325,15 +2324,18 @@ function TrackerApp({
 
 function SearchDialog({
   onAdd,
+  onAddManual,
   onClose,
 }: {
   onAdd: (result: SearchResult) => Promise<boolean>;
+  onAddManual: (title: string) => Promise<boolean>;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [addingId, setAddingId] = useState<number | string | null>(null);
+  const [addingManual, setAddingManual] = useState(false);
 
   useEffect(() => {
     const q = query.trim();
@@ -2381,6 +2383,17 @@ function SearchDialog({
     setAddingId(result.id);
     const ok = await onAdd(result);
     setAddingId(null);
+    if (ok) onClose();
+  };
+
+  // Lets the user add whatever they typed even when AniList/MAL/Kitsu
+  // don't have it (obscure, very new, or fan-translated-only titles).
+  // Passing "" (empty query) falls through to the same auto-generated
+  // "New title" placeholder the old blank-add button used to create.
+  const handleAddManual = async () => {
+    setAddingManual(true);
+    const ok = await onAddManual(query.trim());
+    setAddingManual(false);
     if (ok) onClose();
   };
 
@@ -2453,6 +2466,20 @@ function SearchDialog({
             </div>
           ))}
         </div>
+        <div className="pt-2 border-t border-border">
+          <button
+            type="button"
+            onClick={() => void handleAddManual()}
+            disabled={addingManual}
+            className="w-full h-9 rounded-md border border-dashed border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted/40 transition-colors disabled:opacity-50"
+          >
+            {addingManual
+              ? "Adding…"
+              : query.trim()
+                ? `Can't find it? Add "${query.trim()}" anyway`
+                : "Can't find it? Add a title manually"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2484,36 +2511,43 @@ function ChapterProgress({ chapter, total }: { chapter: number; total: number | 
   );
 }
 
+const STAT_CARD_ACCENTS = {
+  primary: {
+    card: "border-primary/25 bg-primary/8",
+    badge: "bg-primary/20 text-primary",
+    value: "text-primary",
+  },
+  finished: {
+    card: "border-finished/25 bg-finished/8",
+    badge: "bg-finished/20 text-finished",
+    value: "text-finished",
+  },
+  ongoing: {
+    card: "border-ongoing/25 bg-ongoing/8",
+    badge: "bg-ongoing/20 text-ongoing",
+    value: "text-ongoing",
+  },
+} as const;
+
 function StatCard({
   icon: Icon,
   label,
   value,
-  accent,
+  accent = "primary",
 }: {
   icon: typeof BookOpen;
   label: string;
   value: string | number;
-  accent?: "primary";
+  accent?: keyof typeof STAT_CARD_ACCENTS;
 }) {
+  const colors = STAT_CARD_ACCENTS[accent];
   return (
-    <div
-      className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border shrink-0 ${
-        accent === "primary"
-          ? "border-primary/30 bg-primary/10"
-          : "border-border/70 bg-card/40"
-      }`}
-    >
-      <div
-        className={`h-7 w-7 rounded-md grid place-items-center shrink-0 ${
-          accent === "primary" ? "bg-primary/20 text-primary" : "bg-secondary text-muted-foreground"
-        }`}
-      >
-        <Icon className="h-3.5 w-3.5" />
+    <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border shrink-0 ${colors.card}`}>
+      <div className={`h-8 w-8 rounded-full grid place-items-center shrink-0 ${colors.badge}`}>
+        <Icon className="h-4 w-4" />
       </div>
       <div className="flex flex-col leading-tight">
-        <span className={`text-base font-bold tabular-nums ${accent === "primary" ? "text-primary" : ""}`}>
-          {value}
-        </span>
+        <span className={`text-lg font-bold tabular-nums ${colors.value}`}>{value}</span>
         <span className="text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
           {label}
         </span>
@@ -2759,6 +2793,16 @@ function statusRowBorder(status: EntryStatus) {
       : status === "Cancelled"
         ? "border-l-2 border-l-muted-foreground/50"
         : "border-l-2 border-l-finished";
+}
+
+function statusBadgeClasses(status: EntryStatus) {
+  return status === "Reading"
+    ? "bg-ongoing/12 text-ongoing"
+    : status === "Dropped"
+      ? "bg-dropped/12 text-dropped"
+      : status === "Cancelled"
+        ? "bg-cancelled/15 text-muted-foreground"
+        : "bg-finished/12 text-finished";
 }
 
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
