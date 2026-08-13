@@ -8,7 +8,7 @@ export const Route = createFileRoute("/u/$userId")({
 });
 
 type EntryType = "Manga" | "Manhwa" | "Manhua" | "Comic";
-type EntryStatus = "Reading" | "Dropped" | "Cancelled" | "Finished";
+type EntryStatus = "To Read" | "Reading" | "Dropped" | "Cancelled" | "Finished";
 
 type Entry = {
   id: string;
@@ -24,26 +24,30 @@ type SortKey = "title" | "type" | "chapter" | "status" | "created_at";
 type SortDir = "asc" | "desc";
 
 const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
-const STATUSES: EntryStatus[] = ["Reading", "Dropped", "Cancelled", "Finished"];
+const STATUSES: EntryStatus[] = ["To Read", "Reading", "Dropped", "Cancelled", "Finished"];
 
 function statusClasses(status: EntryStatus) {
-  return status === "Reading"
-    ? "text-ongoing bg-ongoing/12 border-ongoing/30"
-    : status === "Dropped"
-      ? "text-dropped bg-dropped/12 border-dropped/30"
-      : status === "Cancelled"
-        ? "text-muted-foreground bg-cancelled/20 border-border"
-        : "text-finished bg-finished/12 border-finished/30";
+  return status === "To Read"
+    ? "text-toread bg-toread/12 border-toread/30"
+    : status === "Reading"
+      ? "text-ongoing bg-ongoing/12 border-ongoing/30"
+      : status === "Dropped"
+        ? "text-dropped bg-dropped/12 border-dropped/30"
+        : status === "Cancelled"
+          ? "text-muted-foreground bg-cancelled/20 border-border"
+          : "text-finished bg-finished/12 border-finished/30";
 }
 
 function rowBorder(status: EntryStatus) {
-  return status === "Reading"
-    ? "border-l-2 border-l-ongoing"
-    : status === "Dropped"
-      ? "border-l-2 border-l-dropped"
-      : status === "Cancelled"
-        ? "border-l-2 border-l-muted-foreground/50"
-        : "border-l-2 border-l-finished";
+  return status === "To Read"
+    ? "border-l-2 border-l-toread"
+    : status === "Reading"
+      ? "border-l-2 border-l-ongoing"
+      : status === "Dropped"
+        ? "border-l-2 border-l-dropped"
+        : status === "Cancelled"
+          ? "border-l-2 border-l-muted-foreground/50"
+          : "border-l-2 border-l-finished";
 }
 
 function initials(name: string) {
@@ -69,6 +73,7 @@ function PublicList() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   const [statusCounts, setStatusCounts] = useState<Record<EntryStatus, number>>({
+    "To Read": 0,
     Reading: 0,
     Dropped: 0,
     Cancelled: 0,
@@ -101,10 +106,11 @@ function PublicList() {
         )
       );
       setStatusCounts({
-        Reading: counts[0].count ?? 0,
-        Dropped: counts[1].count ?? 0,
-        Cancelled: counts[2].count ?? 0,
-        Finished: counts[3].count ?? 0,
+        "To Read": counts[0].count ?? 0,
+        Reading: counts[1].count ?? 0,
+        Dropped: counts[2].count ?? 0,
+        Cancelled: counts[3].count ?? 0,
+        Finished: counts[4].count ?? 0,
       });
     })();
   }, [userId]);
