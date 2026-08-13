@@ -1591,67 +1591,7 @@ function TrackerApp({
             {username ? `, ${username}` : ""}
           </span>
 
-          {/* Mobile: actions revealed via the hamburger button */}
-          {mobileActionsOpen && (
-            <div className="grid grid-cols-3 gap-1.5 w-full sm:hidden animate-in fade-in slide-in-from-top-1 duration-200">
-              <button
-                onClick={() => {
-                  setProfileOpen(true);
-                  setMobileActionsOpen(false);
-                }}
-                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-              >
-                <User className="h-4 w-4" />
-                Profile
-              </button>
-              <button
-                onClick={() => {
-                  setStatsDialogOpen(true);
-                  setMobileActionsOpen(false);
-                }}
-                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-              >
-                <BarChart3 className="h-4 w-4" />
-                Statistics
-              </button>
-              <button
-                onClick={() => {
-                  void backfillCovers();
-                  setMobileActionsOpen(false);
-                }}
-                disabled={backfilling}
-                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors disabled:opacity-60 text-[11px] font-medium"
-              >
-                {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Covers
-              </button>
-              <Link
-                to="/users"
-                onClick={() => setMobileActionsOpen(false)}
-                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-              >
-                <User className="h-4 w-4" />
-                Browse Users
-              </Link>
-              <button
-                onClick={() => {
-                  setPanelOpen(true);
-                  setMobileActionsOpen(false);
-                }}
-                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border bg-card/40 active:bg-secondary transition-colors text-[11px] font-medium"
-              >
-                <ClipboardList className="h-4 w-4" />
-                Import
-              </button>
-              <button
-                onClick={() => void signOutAndCleanup()}
-                className="flex flex-col items-center justify-center gap-1 h-14 rounded-lg border border-border text-muted-foreground active:bg-destructive/10 active:border-destructive/30 active:text-destructive transition-colors text-[11px] font-medium"
-              >
-                <X className="h-4 w-4" />
-                Sign out
-              </button>
-            </div>
-          )}
+          {/* Mobile: hamburger opens a bottom sheet (see mobileActionsOpen below the header) instead of this being an inline dropdown */}
 
           {/* Desktop / tablet: inline buttons */}
           <div className="hidden sm:flex sm:ml-auto items-center gap-1.5 flex-wrap">
@@ -1697,6 +1637,82 @@ function TrackerApp({
           </div>
         </div>
       </header>
+
+      {/* Mobile action menu — a small bottom sheet triggered by the hamburger button, instead of an inline dropdown pushing the header content down. */}
+      {mobileActionsOpen && (
+        <div className="sm:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Menu">
+          <div
+            className="absolute inset-0 bg-background/60 backdrop-blur-sm animate-in fade-in duration-150"
+            onClick={() => setMobileActionsOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 safe-b rounded-t-2xl border-t border-border bg-card shadow-lg animate-in slide-in-from-bottom duration-200 overflow-hidden">
+            <div className="mx-auto mt-2.5 mb-1 h-1 w-10 rounded-full bg-border" />
+            <nav className="py-1.5">
+              <button
+                onClick={() => {
+                  setProfileOpen(true);
+                  setMobileActionsOpen(false);
+                }}
+                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
+              >
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                Profile
+              </button>
+              <button
+                onClick={() => {
+                  setStatsDialogOpen(true);
+                  setMobileActionsOpen(false);
+                }}
+                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
+              >
+                <BarChart3 className="h-4 w-4 text-muted-foreground shrink-0" />
+                Statistics
+              </button>
+              <button
+                onClick={() => {
+                  void backfillCovers();
+                  setMobileActionsOpen(false);
+                }}
+                disabled={backfilling}
+                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors disabled:opacity-60"
+              >
+                {backfilling ? (
+                  <Loader2 className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
+                )}
+                Fetch covers
+              </button>
+              <Link
+                to="/users"
+                onClick={() => setMobileActionsOpen(false)}
+                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
+              >
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                Browse Users
+              </Link>
+              <button
+                onClick={() => {
+                  setPanelOpen(true);
+                  setMobileActionsOpen(false);
+                }}
+                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
+              >
+                <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0" />
+                Import
+              </button>
+              <div className="h-px bg-border my-1" />
+              <button
+                onClick={() => void signOutAndCleanup()}
+                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium text-destructive active:bg-destructive/10 transition-colors"
+              >
+                <X className="h-4 w-4 shrink-0" />
+                Sign out
+              </button>
+            </nav>
+          </div>
+        </div>
+      )}
 
       {profileOpen && (
         <ProfileDialog
