@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { AlertCircle, ArrowRight, BarChart3, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Sun, User, X } from "lucide-react";
+import { AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Compass, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Star, Sun, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
@@ -40,6 +40,11 @@ export const Route = createFileRoute("/")({
 // Every entries query below selects this exact column set — kept as one
 // constant so the row shape always matches the Entry type above.
 const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, position";
+
+// Status options for the "My List" tab's status filter — To Read is
+// excluded since it now lives on its own tab and would just filter the
+// library down to nothing.
+const LIBRARY_STATUSES: EntryStatus[] = STATUSES.filter((s) => s !== "To Read");
 
 // Matches an untouched auto-generated blank entry ("New title", "New title 2", …).
 // Shared by the blur-commit check, the sign-out sweep, and the tab/app-close sweep
@@ -79,7 +84,31 @@ type SearchResult = {
   // is only trustworthy to auto-apply when this is true — a fuzzy hit can
   // be a different series entirely, with a different (wrong) type.
   exactMatch?: boolean;
+  // Discover-tab-only extras — not requested by the plain title search,
+  // only by the AniList queries used for search + discover browsing below.
+  description?: string | null;
+  averageScore?: number | null;
 };
+
+// AniList publication status enum -> a short, human-readable label used
+// throughout the Discover tab's cards/badges.
+const ANILIST_STATUS_LABEL: Record<string, string> = {
+  RELEASING: "Ongoing",
+  FINISHED: "Finished",
+  NOT_YET_RELEASED: "Upcoming",
+  CANCELLED: "Cancelled",
+  HIATUS: "Hiatus",
+};
+function formatAniListStatus(status: string | null | undefined): string {
+  if (!status) return "Unknown";
+  return ANILIST_STATUS_LABEL[status] ?? status;
+}
+// Strips the occasional HTML AniList leaves in descriptions (<br>, <i>, etc.)
+// down to plain text for the card blurb.
+function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, "").trim();
+}
 
 // AniList's public GraphQL API. No key required, CORS-enabled for browser
 // use. It covers Manga/Manhwa/Manhua well (it's a manga/anime database) but
@@ -94,6 +123,8 @@ const ANILIST_QUERY = `
         countryOfOrigin
         chapters
         status
+        description(asHtml: false)
+        averageScore
         title { romaji english }
         coverImage { medium }
         staff(sort: RELEVANCE, perPage: 1) {
@@ -132,6 +163,8 @@ async function searchAniList(query: string, signal?: AbortSignal): Promise<Searc
           countryOfOrigin?: string | null;
           chapters?: number | null;
           status?: string | null;
+          description?: string | null;
+          averageScore?: number | null;
           title?: { romaji?: string | null; english?: string | null };
           coverImage?: { medium?: string | null };
           staff?: { edges?: Array<{ node?: { name?: { full?: string | null } } }> };
@@ -148,6 +181,8 @@ async function searchAniList(query: string, signal?: AbortSignal): Promise<Searc
     coverUrl: m.coverImage?.medium ?? null,
     totalChapters: typeof m.chapters === "number" ? m.chapters : null,
     status: m.status ?? null,
+    description: m.description ?? null,
+    averageScore: typeof m.averageScore === "number" ? m.averageScore : null,
     source: "AniList",
   }));
 }
@@ -165,6 +200,8 @@ const ANILIST_DISCOVER_QUERY = `
         countryOfOrigin
         chapters
         status
+        description(asHtml: false)
+        averageScore
         title { romaji english }
         coverImage { medium }
         staff(sort: RELEVANCE, perPage: 1) {
@@ -204,6 +241,8 @@ async function fetchAniListDiscover(
           countryOfOrigin?: string | null;
           chapters?: number | null;
           status?: string | null;
+          description?: string | null;
+          averageScore?: number | null;
           title?: { romaji?: string | null; english?: string | null };
           coverImage?: { medium?: string | null };
           staff?: { edges?: Array<{ node?: { name?: { full?: string | null } } }> };
@@ -221,6 +260,8 @@ async function fetchAniListDiscover(
       coverUrl: m.coverImage?.medium ?? null,
       totalChapters: typeof m.chapters === "number" ? m.chapters : null,
       status: m.status ?? null,
+      description: m.description ?? null,
+      averageScore: typeof m.averageScore === "number" ? m.averageScore : null,
       source: "AniList",
     })),
     hasNextPage: json.data?.Page?.pageInfo?.hasNextPage ?? false,
@@ -830,6 +871,10 @@ function TrackerApp({
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [typeFilter, setTypeFilter] = useState<EntryType | "">("");
   const [statusFilter, setStatusFilter] = useState<EntryStatus | "">("");
+  // Which top-level view is showing: your full library (minus To Read,
+  // which gets its own tab below), just the To Read pile, or the Discover
+  // browser for finding new titles.
+  const [mainTab, setMainTab] = useState<"library" | "toread" | "discover">("library");
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== "undefined" ? !navigator.onLine : false,
@@ -948,9 +993,9 @@ function TrackerApp({
       total: entries.length,
       rereads: 0,
       types: { Manga: 0, Manhwa: 0, Manhua: 0, Comic: 0 } as Record<EntryType, number>,
-      statuses: { Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 } as Record<EntryStatus, number>,
+      statuses: { "To Read": 0, Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 } as Record<EntryStatus, number>,
       matrix: Object.fromEntries(
-        TYPES.map((t) => [t, { Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 }]),
+        TYPES.map((t) => [t, { "To Read": 0, Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 }]),
       ) as Record<EntryType, Record<EntryStatus, number>>,
     };
     for (const e of entries) {
@@ -966,8 +1011,16 @@ function TrackerApp({
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     const list = entries.filter((e) => {
+      // To Read now lives on its own tab, so the library tab never shows
+      // it (regardless of the status dropdown) and the To Read tab shows
+      // nothing but it.
+      if (mainTab === "toread") {
+        if (e.status !== "To Read") return false;
+      } else if (mainTab === "library") {
+        if (e.status === "To Read") return false;
+        if (statusFilter && e.status !== statusFilter) return false;
+      }
       if (typeFilter && e.type !== typeFilter) return false;
-      if (statusFilter && e.status !== statusFilter) return false;
       if (!q) return true;
       return (
         e.title.toLowerCase().includes(q) ||
@@ -984,7 +1037,7 @@ function TrackerApp({
       if (sortKey === "created_at") return String(av) < String(bv) ? -dir : String(av) > String(bv) ? dir : 0;
       return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
     });
-  }, [entries, filter, typeFilter, statusFilter, sortKey, sortDir]);
+  }, [entries, filter, typeFilter, statusFilter, sortKey, sortDir, mainTab]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -1001,13 +1054,23 @@ function TrackerApp({
 
   const sortValue = sortKey ? `${sortKey}:${sortDir}` : "";
 
+  // Tab-aware empty-state copy for the mobile card list / desktop table.
+  const emptyMessage =
+    mainTab === "toread"
+      ? entries.some((e) => e.status === "To Read")
+        ? "Nothing matches that filter."
+        : 'Nothing in your To Read pile yet — set a title\'s status to "To Read", or add one from Discover.'
+      : entries.length === 0
+        ? "No titles yet. Add one, or use the menu to paste a list."
+        : "Nothing matches that filter.";
+
   const INITIAL_VISIBLE = 20;
   const VISIBLE_STEP = 20;
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
 
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
-  }, [filter, typeFilter, statusFilter, sortKey, sortDir]);
+  }, [filter, typeFilter, statusFilter, sortKey, sortDir, mainTab]);
 
   const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
   const hasMore = visibleCount < filtered.length;
@@ -1325,7 +1388,7 @@ function TrackerApp({
     [update],
   );
 
-  const addFromSearch = async (result: SearchResult) => {
+  const addFromSearch = async (result: SearchResult, initialStatus: EntryStatus = "Reading") => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
     const title = result.title.trim();
     if (!title) return false;
@@ -1338,7 +1401,7 @@ function TrackerApp({
       title,
       type: result.type,
       chapter: 0,
-      status: "Reading",
+      status: initialStatus,
       reread: 0,
       cover_url: result.coverUrl,
       author: result.author,
@@ -1711,6 +1774,47 @@ function TrackerApp({
         </div>
       </header>
 
+      {/* Primary view tabs: your library, your To Read pile, and Discover
+          for browsing new titles. Kept as its own row (not folded into the
+          header) so it stays visible regardless of header/toolbar collapse
+          state. */}
+      <div className="border-b border-border bg-card/20 px-1.5 sm:px-6 shrink-0 overflow-x-auto no-scrollbar">
+        <nav role="tablist" aria-label="Views" className="flex items-center gap-0.5 sm:gap-1 w-max min-w-full">
+          {(
+            [
+              { key: "library", label: "My List", icon: BookOpen },
+              { key: "toread", label: "To Read", icon: Bookmark, count: stats.statuses["To Read"] },
+              { key: "discover", label: "Discover", icon: Compass },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={mainTab === tab.key}
+              onClick={() => setMainTab(tab.key)}
+              className={`shrink-0 h-10 px-3 sm:px-3.5 inline-flex items-center gap-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                mainTab === tab.key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+              }`}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              {tab.label}
+              {"count" in tab && typeof tab.count === "number" && tab.count > 0 && (
+                <span
+                  className={`text-[10px] leading-none px-1.5 py-1 rounded-full ${
+                    mainTab === tab.key ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
+
       {/* Mobile action menu — a small bottom sheet triggered by the hamburger button, instead of an inline dropdown pushing the header content down. */}
       {mobileActionsOpen && (
         <div className="sm:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Menu">
@@ -1813,6 +1917,13 @@ function TrackerApp({
       <main id="main-content" className="flex-1 min-h-0 flex relative">
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
+        {mainTab === "discover" ? (
+          <DiscoverTab
+            entries={entries}
+            onAdd={(result) => addFromSearch(result, "To Read")}
+          />
+        ) : (
+        <>
           <div
             className={`flex flex-col gap-2.5 px-3 sm:px-4 border-b border-border bg-card/30 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 overflow-hidden transition-[max-height,opacity,padding,border-color] duration-300 ease-in-out ${
               toolbarHidden
@@ -1825,7 +1936,7 @@ function TrackerApp({
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter your list…"
+                placeholder={mainTab === "toread" ? "Filter your To Read pile…" : "Filter your list…"}
                 className="w-full h-9 sm:h-9 pl-9 pr-3 rounded-full bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
               />
             </div>
@@ -1871,22 +1982,24 @@ function TrackerApp({
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
               </div>
-              <div className="relative flex-1 basis-0 min-w-0">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                  className="appearance-none min-w-0 w-full h-8 pl-1.5 pr-3.5 rounded-lg bg-input border border-transparent text-[10px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
-                  aria-label="Filter by status"
-                >
-                  <option value="">Status</option>
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
-              </div>
+              {mainTab === "library" && (
+                <div className="relative flex-1 basis-0 min-w-0">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+                    className="appearance-none min-w-0 w-full h-8 pl-1.5 pr-3.5 rounded-lg bg-input border border-transparent text-[10px] outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer truncate"
+                    aria-label="Filter by status"
+                  >
+                    <option value="">Status</option>
+                    {LIBRARY_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
+                </div>
+              )}
             </div>
 
             {/* Mobile: single button opens the search-or-add-manually dialog. */}
@@ -1930,20 +2043,22 @@ function TrackerApp({
                   </option>
                 ))}
               </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
-                className="h-9 px-3.5 rounded-full bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[8rem] transition-colors"
-                title="Filter by status"
-                aria-label="Filter by status"
-              >
-                <option value="">Status</option>
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              {mainTab === "library" && (
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as EntryStatus | "")}
+                  className="h-9 px-3.5 rounded-full bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[8rem] transition-colors"
+                  title="Filter by status"
+                  aria-label="Filter by status"
+                >
+                  <option value="">Status</option>
+                  {LIBRARY_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              )}
               <button
                 onClick={() => setSearchDialogOpen(true)}
                 className="h-9 px-4 rounded-full bg-ongoing text-white dark:text-slate-950 text-sm font-semibold hover:opacity-90 active:scale-[0.98] transition-all shrink-0 shadow-sm shadow-ongoing/30 inline-flex items-center gap-1.5"
@@ -1963,9 +2078,7 @@ function TrackerApp({
             <ul className="md:hidden divide-y divide-border">
               {filtered.length === 0 && (
                 <li className="px-4 py-16 text-center text-muted-foreground text-sm">
-                  {entries.length === 0
-                    ? "No titles yet. Add one, or use the menu to paste a list."
-                    : "Nothing matches that filter."}
+                  {emptyMessage}
                 </li>
               )}
               {visible.map((e) => (
@@ -2130,9 +2243,7 @@ function TrackerApp({
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
-                      {entries.length === 0
-                        ? "No titles yet. Add one, or paste a list on the right."
-                        : "Nothing matches that filter."}
+                      {emptyMessage}
                     </td>
                   </tr>
                 )}
@@ -2317,6 +2428,8 @@ function TrackerApp({
               </div>
             )}
           </div>
+        </>
+        )}
         </section>
 
         {/* Backdrop (mobile) */}
@@ -2569,6 +2682,256 @@ function SearchDialog({
                 : "Can't find it? Add a title manually"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Discover tab — browse (trending / popular / top rated) or search
+// AniList's full manga/manhwa/manhua catalog, independent of what's in
+// the user's own list. Each card shows title, description, rating,
+// chapters, and status, with a one-click add straight into "To Read".
+const DISCOVER_SORTS: { key: DiscoverSort; label: string; icon: typeof Star }[] = [
+  { key: "TRENDING_DESC", label: "Trending", icon: Sparkles },
+  { key: "POPULARITY_DESC", label: "Popular", icon: Compass },
+  { key: "SCORE_DESC", label: "Top Rated", icon: Star },
+];
+
+function DiscoverTab({
+  entries,
+  onAdd,
+}: {
+  entries: Entry[];
+  onAdd: (result: SearchResult) => Promise<boolean>;
+}) {
+  const [sort, setSort] = useState<DiscoverSort>("TRENDING_DESC");
+  const [discoverType, setDiscoverType] = useState<EntryType | "">("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "loadingMore" | "error">("idle");
+  const [addingId, setAddingId] = useState<number | string | null>(null);
+
+  const searching = query.trim().length >= 2;
+
+  // Browse mode: (re)fetch page 1 whenever the sort changes, or when the
+  // search box is cleared back to browse mode.
+  useEffect(() => {
+    if (searching) return;
+    const controller = new AbortController();
+    setStatus("loading");
+    setPage(1);
+    fetchAniListDiscover(sort, 1, controller.signal)
+      .then(({ results: r, hasNextPage: next }) => {
+        setResults(r);
+        setHasNextPage(next);
+        setStatus("idle");
+      })
+      .catch((err) => {
+        if ((err as Error).name === "AbortError") return;
+        setStatus("error");
+      });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort, searching]);
+
+  // Search mode: debounced free-text search across AniList's catalog.
+  useEffect(() => {
+    if (!searching) return;
+    const q = query.trim();
+    const controller = new AbortController();
+    let cancelled = false;
+    setStatus("loading");
+    const timer = setTimeout(() => {
+      searchAniList(q, controller.signal)
+        .then((r) => {
+          if (cancelled) return;
+          setResults(r);
+          setHasNextPage(false);
+          setStatus("idle");
+        })
+        .catch((err) => {
+          if (cancelled || (err as Error).name === "AbortError") return;
+          setStatus("error");
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, searching]);
+
+  const loadMore = async () => {
+    setStatus("loadingMore");
+    try {
+      const nextPage = page + 1;
+      const { results: r, hasNextPage: next } = await fetchAniListDiscover(sort, nextPage);
+      setResults((prev) => [...prev, ...r]);
+      setHasNextPage(next);
+      setPage(nextPage);
+      setStatus("idle");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  const inLibrary = useMemo(
+    () => new Set(entries.map((e) => e.title.trim().toLowerCase())),
+    [entries],
+  );
+
+  const visibleResults = discoverType
+    ? results.filter((r) => r.type === discoverType)
+    : results;
+
+  const handleAdd = async (result: SearchResult) => {
+    setAddingId(result.id);
+    await onAdd(result);
+    setAddingId(null);
+  };
+
+  return (
+    <div className="flex flex-col min-h-0 flex-1">
+      {/* Controls: search box + sort pills (browse mode only) + type filter */}
+      <div className="flex flex-col gap-2.5 px-3 sm:px-4 py-3 sm:py-2.5 border-b border-border bg-card/30">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <div className="relative flex-1 min-w-[10rem]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search all manga, manhwa & manhua…"
+              className="w-full h-9 pl-9 pr-3 rounded-full bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+            />
+          </div>
+          <select
+            value={discoverType}
+            onChange={(e) => setDiscoverType(e.target.value as EntryType | "")}
+            className="h-9 px-3.5 rounded-full bg-input border border-transparent hover:border-border text-sm outline-none focus:ring-2 focus:ring-ring/40 cursor-pointer shrink-0 max-w-[8rem]"
+            aria-label="Filter by type"
+          >
+            <option value="">All types</option>
+            <option value="Manga">Manga</option>
+            <option value="Manhwa">Manhwa</option>
+            <option value="Manhua">Manhua</option>
+          </select>
+        </div>
+
+        {!searching && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {DISCOVER_SORTS.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setSort(s.key)}
+                className={`h-8 px-3 rounded-full text-xs font-semibold inline-flex items-center gap-1.5 border transition-colors ${
+                  sort === s.key
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : "border-border text-muted-foreground hover:bg-secondary hover:border-primary/30"
+                }`}
+              >
+                <s.icon className="h-3.5 w-3.5" />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {searching && (
+          <p className="text-[11px] text-muted-foreground">
+            Searching AniList for "{query.trim()}"
+          </p>
+        )}
+      </div>
+
+      {/* Results grid */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b px-3 sm:px-4 py-3">
+        {status === "loading" && (
+          <p className="text-sm text-muted-foreground px-1 py-16 text-center">Loading titles…</p>
+        )}
+        {status === "error" && (
+          <p className="text-sm text-destructive px-1 py-16 text-center">
+            Couldn't reach AniList. Try again in a moment.
+          </p>
+        )}
+        {status !== "loading" && status !== "error" && visibleResults.length === 0 && (
+          <p className="text-sm text-muted-foreground px-1 py-16 text-center">
+            {searching ? "No matches." : "Nothing to show."}
+          </p>
+        )}
+        {status !== "loading" && visibleResults.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {visibleResults.map((r) => {
+              const already = inLibrary.has(r.title.trim().toLowerCase());
+              const desc = stripHtml(r.description);
+              return (
+                <div
+                  key={`${r.source ?? "anilist"}-${r.id}`}
+                  className="flex gap-3 rounded-lg border border-border bg-card p-3 hover:border-primary/30 transition-colors"
+                >
+                  {r.coverUrl ? (
+                    <img
+                      src={r.coverUrl}
+                      alt=""
+                      className="h-32 w-20 shrink-0 rounded-md object-cover bg-muted"
+                    />
+                  ) : (
+                    <div className="h-32 w-20 shrink-0 rounded-md bg-muted grid place-items-center">
+                      <BookOpen className="h-5 w-5 text-muted-foreground/40" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                    <div className="text-sm font-semibold leading-snug line-clamp-2">{r.title}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                      <span className="px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium">
+                        {r.type}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                        {formatAniListStatus(r.status)}
+                      </span>
+                      {typeof r.averageScore === "number" && (
+                        <span className="inline-flex items-center gap-0.5 text-finished font-semibold">
+                          <Star className="h-3 w-3 fill-current" />
+                          {(r.averageScore / 10).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {typeof r.totalChapters === "number" ? `${r.totalChapters} chapters` : "Chapter count unknown"}
+                      {r.author ? ` · ${r.author}` : ""}
+                    </div>
+                    {desc && (
+                      <p className="text-[11px] text-muted-foreground line-clamp-3 flex-1">{desc}</p>
+                    )}
+                    <button
+                      onClick={() => void handleAdd(r)}
+                      disabled={already || addingId === r.id}
+                      className={`mt-auto h-7 px-3 rounded-full text-[11px] font-semibold self-start transition-colors ${
+                        already
+                          ? "bg-secondary text-muted-foreground cursor-default"
+                          : "bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                      }`}
+                    >
+                      {already ? "In your list" : addingId === r.id ? "Adding…" : "+ Add to To Read"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {!searching && hasNextPage && status !== "loading" && (
+          <div className="flex justify-center py-4">
+            <button
+              onClick={() => void loadMore()}
+              disabled={status === "loadingMore"}
+              className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors disabled:opacity-60"
+            >
+              {status === "loadingMore" ? "Loading…" : "Load more"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2865,44 +3228,52 @@ function SortTh({
 }
 
 function statusColorClasses(status: EntryStatus) {
-  return status === "Reading"
-    ? "text-ongoing"
-    : status === "Dropped"
-      ? "text-dropped"
-      : status === "Cancelled"
-        ? "text-muted-foreground"
-        : "text-finished";
+  return status === "To Read"
+    ? "text-toread"
+    : status === "Reading"
+      ? "text-ongoing"
+      : status === "Dropped"
+        ? "text-dropped"
+        : status === "Cancelled"
+          ? "text-muted-foreground"
+          : "text-finished";
 }
 
 function statusRowBorder(status: EntryStatus) {
-  return status === "Reading"
-    ? "border-l-2 border-l-ongoing"
-    : status === "Dropped"
-      ? "border-l-2 border-l-dropped"
-      : status === "Cancelled"
-        ? "border-l-2 border-l-muted-foreground/50"
-        : "border-l-2 border-l-finished";
+  return status === "To Read"
+    ? "border-l-2 border-l-toread"
+    : status === "Reading"
+      ? "border-l-2 border-l-ongoing"
+      : status === "Dropped"
+        ? "border-l-2 border-l-dropped"
+        : status === "Cancelled"
+          ? "border-l-2 border-l-muted-foreground/50"
+          : "border-l-2 border-l-finished";
 }
 
 function statusBadgeClasses(status: EntryStatus) {
-  return status === "Reading"
-    ? "bg-ongoing/12 text-ongoing"
-    : status === "Dropped"
-      ? "bg-dropped/12 text-dropped"
-      : status === "Cancelled"
-        ? "bg-cancelled/15 text-muted-foreground"
-        : "bg-finished/12 text-finished";
+  return status === "To Read"
+    ? "bg-toread/12 text-toread"
+    : status === "Reading"
+      ? "bg-ongoing/12 text-ongoing"
+      : status === "Dropped"
+        ? "bg-dropped/12 text-dropped"
+        : status === "Cancelled"
+          ? "bg-cancelled/15 text-muted-foreground"
+          : "bg-finished/12 text-finished";
 }
 
 function StatusPill({ status, count }: { status: EntryStatus; count: number }) {
   const bg =
-    status === "Reading"
-      ? "bg-ongoing/12 border-ongoing/30"
-      : status === "Dropped"
-        ? "bg-dropped/12 border-dropped/30"
-        : status === "Cancelled"
-          ? "bg-cancelled/20 border-border"
-          : "bg-finished/12 border-finished/30";
+    status === "To Read"
+      ? "bg-toread/12 border-toread/30"
+      : status === "Reading"
+        ? "bg-ongoing/12 border-ongoing/30"
+        : status === "Dropped"
+          ? "bg-dropped/12 border-dropped/30"
+          : status === "Cancelled"
+            ? "bg-cancelled/20 border-border"
+            : "bg-finished/12 border-finished/30";
   return (
     <span
       className={`px-2.5 py-1 rounded-full font-semibold border whitespace-nowrap text-xs shrink-0 ${bg} ${statusColorClasses(status)}`}
