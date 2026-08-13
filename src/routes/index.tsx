@@ -152,8 +152,81 @@ async function searchAniList(query: string, signal?: AbortSignal): Promise<Searc
   }));
 }
 
-// Picks the best AniList match for a plain title string: an exact
-// case-insensitive match if one exists, otherwise the top search hit.
+// Trending/popular browsing for the Discover tab — same media shape as
+// the search query above, but sorted by trend/popularity/score instead of
+// text relevance, and paginated so "Load more" can keep pulling further
+// down the list.
+const ANILIST_DISCOVER_QUERY = `
+  query ($page: Int, $sort: [MediaSort], $format: [MediaFormat]) {
+    Page(page: $page, perPage: 24) {
+      pageInfo { hasNextPage }
+      media(type: MANGA, sort: $sort, format_in: $format) {
+        id
+        countryOfOrigin
+        chapters
+        status
+        title { romaji english }
+        coverImage { medium }
+        staff(sort: RELEVANCE, perPage: 1) {
+          edges { node { name { full } } }
+        }
+      }
+    }
+  }
+`;
+
+type DiscoverSort = "TRENDING_DESC" | "POPULARITY_DESC" | "SCORE_DESC";
+
+async function fetchAniListDiscover(
+  sort: DiscoverSort,
+  page: number,
+  signal?: AbortSignal,
+): Promise<{ results: SearchResult[]; hasNextPage: boolean }> {
+  const res = await fetch(ANILIST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      query: ANILIST_DISCOVER_QUERY,
+      // MANGA covers manhwa/manhua too (AniList distinguishes those by
+      // country of origin, not format) — format_in just excludes prose
+      // novels so the grid stays illustrated titles only.
+      variables: { page, sort: [sort], format: ["MANGA", "ONE_SHOT"] },
+    }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`Discover fetch failed (${res.status})`);
+  const json = (await res.json()) as {
+    data?: {
+      Page?: {
+        pageInfo?: { hasNextPage?: boolean };
+        media?: Array<{
+          id: number;
+          countryOfOrigin?: string | null;
+          chapters?: number | null;
+          status?: string | null;
+          title?: { romaji?: string | null; english?: string | null };
+          coverImage?: { medium?: string | null };
+          staff?: { edges?: Array<{ node?: { name?: { full?: string | null } } }> };
+        }>;
+      };
+    };
+  };
+  const media = json.data?.Page?.media ?? [];
+  return {
+    results: media.map((m) => ({
+      id: m.id,
+      title: m.title?.english || m.title?.romaji || "Untitled",
+      type: guessTypeFromCountry(m.countryOfOrigin),
+      author: m.staff?.edges?.[0]?.node?.name?.full ?? null,
+      coverUrl: m.coverImage?.medium ?? null,
+      totalChapters: typeof m.chapters === "number" ? m.chapters : null,
+      status: m.status ?? null,
+      source: "AniList",
+    })),
+    hasNextPage: json.data?.Page?.pageInfo?.hasNextPage ?? false,
+  };
+}
+
 // Returns null on no results or a network error so callers can just skip
 // enrichment silently — AniList also has ~no Western "Comic" catalog, so
 // misses there are expected. `exactMatch` is stamped on the result so
