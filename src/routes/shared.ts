@@ -3,7 +3,7 @@
 // (no React, no Supabase) so these are cheap to unit test in isolation.
 
 export type EntryType = "Manga" | "Manhwa" | "Manhua" | "Comic";
-export type EntryStatus = "Reading" | "Dropped" | "Cancelled" | "Finished";
+export type EntryStatus = "To Read" | "Reading" | "Dropped" | "Cancelled" | "Finished";
 
 export type Entry = {
   id: string;
@@ -20,6 +20,7 @@ export type Entry = {
 };
 
 export const STATUS_FILL: Record<string, string> = {
+  "To Read": "var(--toread)",
   Reading: "var(--ongoing)",
   Dropped: "var(--dropped)",
   Cancelled: "var(--cancelled)",
@@ -27,7 +28,7 @@ export const STATUS_FILL: Record<string, string> = {
 };
 
 export const TYPES: EntryType[] = ["Manga", "Manhwa", "Manhua", "Comic"];
-export const STATUSES: EntryStatus[] = ["Reading", "Dropped", "Cancelled", "Finished"];
+export const STATUSES: EntryStatus[] = ["To Read", "Reading", "Dropped", "Cancelled", "Finished"];
 
 // Single source of truth for "what month is it" across the app: the
 // reader's local calendar month, stored as the first-of-month date. Used
