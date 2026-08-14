@@ -2720,6 +2720,8 @@ function DiscoverTab({
   const [controlsHidden, setControlsHidden] = useState(false);
   const lastScrollY = useRef(0);
 
+  const searching = query.trim().length >= 2;
+
   useEffect(() => {
     const el = resultsRef.current;
     if (!el) return;
@@ -2737,13 +2739,20 @@ function DiscoverTab({
         }
         lastScrollY.current = y;
         ticking = false;
+
+        // Auto-load the next page once the sentinel gets close, same as
+        // My List's infinite scroll — only in browse mode, since search
+        // results aren't paginated.
+        const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+        if (remaining < 600 && !searching && hasNextPage && status === "idle") {
+          void loadMore();
+        }
       });
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const searching = query.trim().length >= 2;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searching, hasNextPage, status]);
 
   // Browse mode: (re)fetch page 1 whenever the sort changes, or when the
   // search box is cleared back to browse mode.
