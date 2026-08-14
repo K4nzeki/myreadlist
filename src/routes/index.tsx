@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
+import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
 import {
   TYPES,
   STATUSES,
@@ -384,22 +385,81 @@ function useIsDesktop(breakpoint = 768) {
 function Tracker() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  // True when `session` isn't a real Supabase session but a stand-in built
+  // from the last confirmed sign-in, used while offline (see below). Kept
+  // separate from `session` itself so nothing downstream has to guess.
+  const [usingOfflineSession, setUsingOfflineSession] = useState(false);
   // Set true the moment Supabase reports a PASSWORD_RECOVERY event (the
   // user landed here via the "reset password" email link). We hold them on
   // a dedicated "set a new password" screen instead of dropping them into
   // the tracker with a session they didn't knowingly start.
   const [recoveryMode, setRecoveryMode] = useState(false);
 
+  // Falls back to the last confirmed sign-in (see offline-auth-grace) when
+  // the real session comes back empty while offline — up to 24h old. This
+  // is what stops a connection drop from bouncing someone to the login
+  // screen just because the access token's real expiry passed while there
+  // was no network available to refresh it.
+  const applyOfflineFallback = useCallback((): boolean => {
+    if (typeof navigator !== "undefined" && navigator.onLine) return false;
+    const remembered = loadRememberedSession();
+    if (!remembered) return false;
+    setSession({
+      user: { id: remembered.userId, email: remembered.email },
+      access_token: remembered.accessToken,
+    } as Session);
+    setUsingOfflineSession(true);
+    return true;
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+      if (data.session) {
+        setSession(data.session);
+        setUsingOfflineSession(false);
+        rememberSession(data.session);
+      } else if (!applyOfflineFallback()) {
+        setSession(null);
+      }
       setAuthReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
       if (e === "PASSWORD_RECOVERY") setRecoveryMode(true);
-      setSession(s);
+      if (s) {
+        setSession(s);
+        setUsingOfflineSession(false);
+        rememberSession(s);
+      } else if (e === "SIGNED_OUT") {
+        forgetRememberedSession();
+        setSession(null);
+        setUsingOfflineSession(false);
+      } else if (!applyOfflineFallback()) {
+        setSession(null);
+      }
     });
-    return () => sub.subscription.unsubscribe();
+    // The moment the connection comes back, ask Supabase for the real
+    // session again so a temporary offline stand-in gets replaced (or, if
+    // the refresh token turned out to be genuinely invalid, so the user is
+    // correctly signed out instead of staying on stale cached credentials).
+    const onOnline = () => {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) {
+          setSession(data.session);
+          setUsingOfflineSession(false);
+          rememberSession(data.session);
+        } else if (usingOfflineSession) {
+          forgetRememberedSession();
+          setSession(null);
+          setUsingOfflineSession(false);
+        }
+      });
+    };
+    window.addEventListener("online", onOnline);
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("online", onOnline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!authReady) {
@@ -1262,6 +1322,14 @@ function TrackerApp({
   }, [loadUsername]);
 
   const reload = useCallback(async () => {
+    // Offline: keep showing whatever's already loaded (cached entries on
+    // first mount, see loadCachedEntries above) instead of firing a request
+    // that's guaranteed to fail and surfacing a redundant error toast next
+    // to the "You're offline" banner.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("entries")
       .select(ENTRY_COLUMNS)
