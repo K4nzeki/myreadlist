@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type TouchEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Compass, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Star, Sun, User, X } from "lucide-react";
+import { AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, Pencil, RefreshCw, Search, Sparkles, Star, Sun, User, X } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
@@ -860,6 +860,20 @@ function TrackerApp({
   // Tracks which entry's title input is currently focused, so the
   // tab/app-close sweep never yanks away a title the user is mid-typing.
   const focusedEntryIdRef = useRef<string | null>(null);
+  // Titles are read-only by default and only become an editable input once
+  // the user explicitly taps the edit (pencil) button — this is what stops
+  // a stray tap/scroll from landing in the field and silently mangling or
+  // blanking a title. A copy button sits next to it for grabbing the title
+  // text without risking an edit at all.
+  const [editingTitleId, setEditingTitleId] = useState<string | number | null>(null);
+  const copyTitle = async (title: string) => {
+    try {
+      await navigator.clipboard.writeText(title);
+      toast.success("Title copied");
+    } catch {
+      toast.error("Couldn't copy title");
+    }
+  };
   const [_loading, setLoading] = useState(true);
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: number; errors: string[] } | null>(null);
@@ -2162,20 +2176,50 @@ function TrackerApp({
                     )}
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
-                        <input
-                          key={`${e.id}-${e.title}`}
-                          defaultValue={e.title}
-                          onFocus={() => {
-                            focusedEntryIdRef.current = e.id;
-                          }}
-                          onBlur={(ev) => {
-                            if (focusedEntryIdRef.current === e.id) focusedEntryIdRef.current = null;
-                            void commitTitleEdit(e, ev.target.value, (v) => {
-                              ev.target.value = v;
-                            });
-                          }}
-                          className="min-w-0 flex-1 bg-transparent outline-none focus:bg-input rounded px-2 py-1"
-                        />
+                        {editingTitleId === e.id ? (
+                          <input
+                            key={`${e.id}-${e.title}`}
+                            defaultValue={e.title}
+                            autoFocus
+                            onFocus={(ev) => {
+                              focusedEntryIdRef.current = e.id;
+                              ev.target.select();
+                            }}
+                            onBlur={(ev) => {
+                              if (focusedEntryIdRef.current === e.id) focusedEntryIdRef.current = null;
+                              setEditingTitleId(null);
+                              void commitTitleEdit(e, ev.target.value, (v) => {
+                                ev.target.value = v;
+                              });
+                            }}
+                            onKeyDown={(ev) => {
+                              if (ev.key === "Enter") ev.currentTarget.blur();
+                            }}
+                            className="min-w-0 flex-1 bg-input outline-none rounded px-2 py-1"
+                          />
+                        ) : (
+                          <>
+                            <span className="min-w-0 flex-1 truncate px-2 py-1">{e.title}</span>
+                            <button
+                              type="button"
+                              onClick={() => void copyTitle(e.title)}
+                              aria-label={`Copy title of ${e.title}`}
+                              title="Copy title"
+                              className="shrink-0 h-7 w-7 grid place-items-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingTitleId(e.id)}
+                              aria-label={`Edit title of ${e.title}`}
+                              title="Edit title"
+                              className="shrink-0 h-7 w-7 grid place-items-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
                         <div className="flex flex-col shrink-0">
                           <button
                             type="button"
@@ -2234,6 +2278,11 @@ function TrackerApp({
                           ))}
                         </select>
                       </div>
+                      {mainTab === "toread" && e.total_chapters != null && (
+                        <div className="text-xs text-muted-foreground px-0.5">
+                          {e.total_chapters} {e.total_chapters === 1 ? "chapter" : "chapters"}
+                        </div>
+                      )}
                       {mainTab !== "toread" && (
                         <>
                           <div className="grid grid-cols-2 gap-2">
@@ -2307,6 +2356,9 @@ function TrackerApp({
                   {mainTab !== "toread" && (
                     <SortTh label="Ch." k="chapter" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-24" align="right" />
                   )}
+                  {mainTab === "toread" && (
+                    <th className="text-right px-2 py-2 w-24">Chapters</th>
+                  )}
                   <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-32" />
                   {mainTab !== "toread" && (
                     <SortTh label="Reread" k="reread" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-20" align="right" />
@@ -2317,7 +2369,7 @@ function TrackerApp({
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={mainTab === "toread" ? 6 : 8} className="px-4 py-16 text-center text-muted-foreground">
+                    <td colSpan={mainTab === "toread" ? 7 : 8} className="px-4 py-16 text-center text-muted-foreground">
                       {emptyMessage}
                     </td>
                   </tr>
@@ -2384,20 +2436,50 @@ function TrackerApp({
                     <td className="px-4 py-1.5">
                       <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
-                          <input
-                             key={`${e.id}-${e.title}`}
-                             defaultValue={e.title}
-                             onFocus={() => {
-                               focusedEntryIdRef.current = e.id;
-                             }}
-                             onBlur={(ev) => {
-                               if (focusedEntryIdRef.current === e.id) focusedEntryIdRef.current = null;
-                               void commitTitleEdit(e, ev.target.value, (v) => {
-                                 ev.target.value = v;
-                               });
-                             }}
-                            className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
-                          />
+                          {editingTitleId === e.id ? (
+                            <input
+                              key={`${e.id}-${e.title}`}
+                              defaultValue={e.title}
+                              autoFocus
+                              onFocus={(ev) => {
+                                focusedEntryIdRef.current = e.id;
+                                ev.target.select();
+                              }}
+                              onBlur={(ev) => {
+                                if (focusedEntryIdRef.current === e.id) focusedEntryIdRef.current = null;
+                                setEditingTitleId(null);
+                                void commitTitleEdit(e, ev.target.value, (v) => {
+                                  ev.target.value = v;
+                                });
+                              }}
+                              onKeyDown={(ev) => {
+                                if (ev.key === "Enter") ev.currentTarget.blur();
+                              }}
+                              className="w-full bg-input outline-none rounded px-2 py-1"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <span className="min-w-0 flex-1 truncate px-2 py-1">{e.title}</span>
+                              <button
+                                type="button"
+                                onClick={() => void copyTitle(e.title)}
+                                aria-label={`Copy title of ${e.title}`}
+                                title="Copy title"
+                                className="shrink-0 h-6 w-6 grid place-items-center rounded text-muted-foreground opacity-0 group-hover:opacity-100 transition hover:bg-secondary hover:text-foreground"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingTitleId(e.id)}
+                                aria-label={`Edit title of ${e.title}`}
+                                title="Edit title"
+                                className="shrink-0 h-6 w-6 grid place-items-center rounded text-muted-foreground opacity-0 group-hover:opacity-100 transition hover:bg-secondary hover:text-foreground"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
                           {mainTab !== "toread" && (
                             <div className="px-2">
                               <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
@@ -2441,6 +2523,11 @@ function TrackerApp({
                             +1
                           </button>
                         </div>
+                      </td>
+                    )}
+                    {mainTab === "toread" && (
+                      <td className="px-2 py-1.5 text-right text-muted-foreground">
+                        {e.total_chapters != null ? e.total_chapters : "—"}
                       </td>
                     )}
                     <td className="px-2 py-1.5">
