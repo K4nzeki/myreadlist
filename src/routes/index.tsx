@@ -891,6 +891,15 @@ function TrackerApp({
   const anyDialogOpen =
     panelOpen || profileOpen || mobileActionsOpen || statsDialogOpen || searchDialogOpen;
 
+  // Which way the panel should slide in from — set right before setMainTab
+  // so the next render's animate-in direction matches how the user got
+  // there (swipe direction, or left-to-right position of the tapped tab).
+  const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
+  const changeMainTab = (next: MainTab) => {
+    setSlideDir(MAIN_TABS.indexOf(next) > MAIN_TABS.indexOf(mainTab) ? "forward" : "backward");
+    setMainTab(next);
+  };
+
   const onMainTouchStart = (e: TouchEvent) => {
     if (anyDialogOpen || e.touches.length !== 1) {
       swipeActive.current = false;
@@ -913,9 +922,9 @@ function TrackerApp({
     if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
     const idx = MAIN_TABS.indexOf(mainTab);
     if (dx < 0 && idx < MAIN_TABS.length - 1) {
-      setMainTab(MAIN_TABS[idx + 1]);
+      changeMainTab(MAIN_TABS[idx + 1]);
     } else if (dx > 0 && idx > 0) {
-      setMainTab(MAIN_TABS[idx - 1]);
+      changeMainTab(MAIN_TABS[idx - 1]);
     }
   };
 
@@ -1839,7 +1848,7 @@ function TrackerApp({
               type="button"
               role="tab"
               aria-selected={mainTab === tab.key}
-              onClick={() => setMainTab(tab.key)}
+              onClick={() => changeMainTab(tab.key)}
               className={`shrink-0 h-10 px-3 sm:px-3.5 inline-flex items-center gap-1.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 mainTab === tab.key
                   ? "border-primary text-primary"
@@ -1968,7 +1977,13 @@ function TrackerApp({
         onTouchEnd={onMainTouchEnd}
       >
         {/* Table panel */}
-        <section className="flex flex-col min-h-0 flex-1 border-r border-border">
+        <section className="flex flex-col min-h-0 flex-1 border-r border-border overflow-hidden">
+        <div
+          key={mainTab}
+          className={`flex flex-col min-h-0 flex-1 animate-in fade-in duration-200 ease-out ${
+            slideDir === "forward" ? "slide-in-from-right-8" : "slide-in-from-left-8"
+          }`}
+        >
         {mainTab === "discover" ? (
           <DiscoverTab
             entries={entries}
@@ -2496,6 +2511,7 @@ function TrackerApp({
           </div>
         </>
         )}
+        </div>
         </section>
 
         {/* Backdrop (mobile) */}
