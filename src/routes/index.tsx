@@ -2713,6 +2713,36 @@ function DiscoverTab({
   const [status, setStatus] = useState<"idle" | "loading" | "loadingMore" | "error">("idle");
   const [addingId, setAddingId] = useState<number | string | null>(null);
 
+  // Hide the search/filter/sort controls bar on scroll-down, reveal it again
+  // on scroll-up — mirrors the toolbarHidden behavior on the My List/To Read
+  // tabs, so results get more room while browsing a long list of titles.
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [controlsHidden, setControlsHidden] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const el = resultsRef.current;
+    if (!el) return;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = el.scrollTop;
+        const delta = y - lastScrollY.current;
+        if (y <= 8) {
+          setControlsHidden(false);
+        } else if (Math.abs(delta) > 4) {
+          setControlsHidden(delta > 0);
+        }
+        lastScrollY.current = y;
+        ticking = false;
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
   const searching = query.trim().length >= 2;
 
   // Browse mode: (re)fetch page 1 whenever the sort changes, or when the
@@ -2794,8 +2824,16 @@ function DiscoverTab({
 
   return (
     <div className="flex flex-col min-h-0 flex-1">
-      {/* Controls: search box + sort pills (browse mode only) + type filter */}
-      <div className="flex flex-col gap-2.5 px-3 sm:px-4 py-3 sm:py-2.5 border-b border-border bg-card/30">
+      {/* Controls: search box + sort pills (browse mode only) + type filter.
+          Collapses out of view on scroll-down and slides back in on
+          scroll-up (see controlsHidden above). */}
+      <div
+        className={`flex flex-col gap-2.5 px-3 sm:px-4 border-b border-border bg-card/30 overflow-hidden transition-[max-height,opacity,padding,border-color] duration-300 ease-in-out ${
+          controlsHidden
+            ? "max-h-0 opacity-0 py-0 border-transparent pointer-events-none"
+            : "max-h-40 opacity-100 py-3 sm:py-2.5"
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="relative flex-1 min-w-[10rem]">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -2846,7 +2884,10 @@ function DiscoverTab({
       </div>
 
       {/* Results grid */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b px-3 sm:px-4 py-3">
+      <div
+        ref={resultsRef}
+        className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b px-3 sm:px-4 py-3"
+      >
         {status === "loading" && (
           <p className="text-sm text-muted-foreground px-1 py-16 text-center">Loading titles…</p>
         )}
