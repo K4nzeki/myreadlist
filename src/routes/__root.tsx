@@ -10,7 +10,8 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import InstallAppPrompt from "@/components/InstallAppPrompt";
-import { ThemeProvider, THEME_INIT_SCRIPT } from "@/hooks/use-theme";
+import { ThemeProvider } from "@/hooks/use-theme";
+import { THEME_INIT_SCRIPT } from "@/hooks/theme-init-script";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
