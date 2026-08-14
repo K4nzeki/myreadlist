@@ -1707,7 +1707,7 @@ function TrackerApp({
               ))}
             </div>
             <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-              {STATUSES.map((s) => (
+              {LIBRARY_STATUSES.map((s) => (
                 <StatusPill key={s} status={s} count={stats.statuses[s]} />
               ))}
             </div>
@@ -1718,7 +1718,7 @@ function TrackerApp({
 
         {/* Status pills — own single-line row on mobile so they don't fight the stat-card scroller */}
         <div className="sm:hidden flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar -mx-3 px-3">
-          {STATUSES.map((s) => (
+          {LIBRARY_STATUSES.map((s) => (
             <StatusPill key={s} status={s} count={stats.statuses[s]} />
           ))}
         </div>
