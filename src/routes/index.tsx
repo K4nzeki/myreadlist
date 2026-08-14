@@ -358,21 +358,55 @@ function serialize(entries: Entry[]) {
     .join("\n");
 }
 
+// Tracks whether the viewport is at/above the "md" breakpoint (768px),
+// the same breakpoint the list view's Tailwind classes key off of. Used to
+// mount ONLY the mobile card list or ONLY the desktop table at a time —
+// previously both were always mounted (one merely hidden via CSS), which
+// meant every cover image, <select>, and number input was built and its
+// network requests fired twice per row. That doubled DOM/work is what made
+// covers, chapter/reread inputs, status, and type feel slow to appear,
+// especially on wider screens where the table variant (with more fields
+// than the mobile cards) was one of the two copies being paid for.
+function useIsDesktop(breakpoint = 768) {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth >= breakpoint : true,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${breakpoint}px)`);
+    const onChange = () => setIsDesktop(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [breakpoint]);
+  return isDesktop;
+}
+
 function Tracker() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  // Set true the moment Supabase reports a PASSWORD_RECOVERY event (the
+  // user landed here via the "reset password" email link). We hold them on
+  // a dedicated "set a new password" screen instead of dropping them into
+  // the tracker with a session they didn't knowingly start.
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((e, s) => {
+      if (e === "PASSWORD_RECOVERY") setRecoveryMode(true);
+      setSession(s);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
   if (!authReady) {
     return <SplashScreen />;
+  }
+  if (session && recoveryMode) {
+    return <ResetPasswordScreen onDone={() => setRecoveryMode(false)} />;
   }
   if (!session) return <AuthPanel />;
   return (
@@ -417,7 +451,7 @@ function ListSkeleton() {
 }
 
 function AuthPanel() {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   // In signup mode this holds the account email. In signin mode it holds
   // either a username or an email ("identifier").
   const [email, setEmail] = useState("");
@@ -433,6 +467,7 @@ function AuthPanel() {
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">(
     "idle",
   );
+  const [resetSent, setResetSent] = useState(false);
 
   const emailTouched = email.length > 0;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -539,6 +574,42 @@ function AuthPanel() {
     setUsernameStatus("idle");
   };
 
+  const openForgot = () => {
+    setMode("forgot");
+    setMsg(null);
+    setResetSent(false);
+  };
+
+  const backToSignin = () => {
+    setMode("signin");
+    setMsg(null);
+    setResetSent(false);
+  };
+
+  const requestReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(target)) {
+      setMsgKind("error");
+      setMsg("Enter a valid email address.");
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(target, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err) {
+      setMsgKind("error");
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="relative h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
       {/* Ambient background */}
@@ -618,13 +689,83 @@ function AuthPanel() {
             <div className="rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/5 p-6 sm:p-7">
               <div className="mb-6">
                 <h1 className="text-xl font-semibold tracking-tight">
-                  {mode === "signin" ? "Welcome back" : "Create your account"}
+                  {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : "Reset your password"}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {mode === "signin" ? "Sign in to sync your reading list." : "Start tracking in under a minute."}
+                  {mode === "signin"
+                    ? "Sign in to sync your reading list."
+                    : mode === "signup"
+                      ? "Start tracking in under a minute."
+                      : "We'll email you a link to set a new one."}
                 </p>
               </div>
 
+              {mode === "forgot" ? (
+                <form onSubmit={requestReset} className="flex flex-col gap-4" noValidate>
+                  {resetSent ? (
+                    <div className="flex items-start gap-2 rounded-lg border border-finished/30 bg-finished/10 px-3 py-2.5 text-xs text-finished animate-in fade-in slide-in-from-top-1 duration-200">
+                      <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>If an account exists for that email, a reset link is on its way.</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <label htmlFor="reset-email" className="text-xs font-medium text-muted-foreground">
+                        Email
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          id="reset-email"
+                          type="email"
+                          required
+                          autoComplete="email"
+                          autoFocus
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="w-full h-11 pl-10 pr-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {!resetSent && (
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="group h-11 mt-1 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:active:scale-100 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      {busy ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Sending…
+                        </>
+                      ) : (
+                        <>
+                          Send reset link
+                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {msg && !resetSent && (
+                    <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+                      <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      <span>{msg}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={backToSignin}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors text-center"
+                  >
+                    Back to <span className="text-primary font-medium">Sign in</span>
+                  </button>
+                </form>
+              ) : (
+              <>
               <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
                 {/* Email (signup) / Username-or-email (signin) */}
                 <div className="flex flex-col gap-1.5">
@@ -727,7 +868,17 @@ function AuthPanel() {
                     <label htmlFor="auth-password" className="text-xs font-medium text-muted-foreground">
                       Password
                     </label>
-                    <span className="text-[11px] text-muted-foreground/70">min 6 characters</span>
+                    {mode === "signin" ? (
+                      <button
+                        type="button"
+                        onClick={openForgot}
+                        className="text-[11px] text-primary hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    ) : (
+                      <span className="text-[11px] text-muted-foreground/70">min 6 characters</span>
+                    )}
                   </div>
                   <div className="relative">
                     <Lock
@@ -827,6 +978,8 @@ function AuthPanel() {
                   )}
                 </button>
               </div>
+              </>
+              )}
             </div>
 
             <p className="text-center text-[11px] text-muted-foreground/60 mt-6">
@@ -834,6 +987,139 @@ function AuthPanel() {
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordScreen({ onDone }: { onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const pwValid = password.length >= 6;
+  const matches = password === confirm;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMsg(null);
+    if (!pwValid) {
+      setMsg("Password must be at least 6 characters.");
+      return;
+    }
+    if (!matches) {
+      setMsg("Passwords don't match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      setDone(true);
+    } catch (err) {
+      setMsg((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="relative h-[100dvh] w-screen overflow-hidden bg-background text-foreground grid place-items-center p-4">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -left-32 h-[28rem] w-[28rem] rounded-full bg-primary/25 blur-[120px]" />
+        <div className="absolute -bottom-48 -right-24 h-[26rem] w-[26rem] rounded-full bg-accent/20 blur-[120px]" />
+      </div>
+      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border/80 bg-card shadow-2xl shadow-black/10 p-6">
+        <div className="flex items-center gap-2.5 mb-5">
+          <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 grid place-items-center">
+            <Lock className="h-4 w-4 text-primary" />
+          </div>
+          <h2 className="text-base font-semibold">Set a new password</h2>
+        </div>
+
+        {done ? (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-start gap-2 rounded-lg border border-finished/30 bg-finished/10 px-3 py-2.5 text-xs text-finished">
+              <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>Password updated. You're all set.</span>
+            </div>
+            <button
+              type="button"
+              onClick={onDone}
+              className="h-11 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all"
+            >
+              Continue to Panels
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">New password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type={showPw ? "text" : "password"}
+                  autoComplete="new-password"
+                  autoFocus
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full h-11 pl-10 pr-10 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  aria-label={showPw ? "Hide password" : "Show password"}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 grid place-items-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Confirm password</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input
+                  type={showPw ? "text" : "password"}
+                  autoComplete="new-password"
+                  minLength={6}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full h-11 pl-10 pr-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-primary/50 focus:ring-2 focus:ring-ring/40 transition-all"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="h-11 mt-1 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+            >
+              {busy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Updating…
+                </>
+              ) : (
+                "Update password"
+              )}
+            </button>
+
+            {msg && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>{msg}</span>
+              </div>
+            )}
+          </form>
+        )}
       </div>
     </div>
   );
