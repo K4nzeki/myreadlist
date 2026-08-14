@@ -3,7 +3,11 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 export type ThemePreference = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
-const STORAGE_KEY = "panels-theme";
+// Exported (not the script itself) so THEME_INIT_SCRIPT in
+// theme-init-script.ts can stay in sync without duplicating the literal.
+// This is a plain string export, so it doesn't trip the "file must only
+// export components" Fast Refresh check the way THEME_INIT_SCRIPT did.
+export const STORAGE_KEY = "panels-theme";
 
 // Kept in sync with the inline script in __root.tsx (search THEME_INIT_SCRIPT
 // there) — that script runs before React hydrates so the correct class is
@@ -83,20 +87,3 @@ export function useTheme(): ThemeContextValue {
   if (!ctx) throw new Error("useTheme must be used within a ThemeProvider");
   return ctx;
 }
-
-// Inline, blocking script string injected into <head> in __root.tsx so the
-// correct theme class is on <html> before first paint (no flash of the
-// wrong theme). Must stay logically in sync with resolve()/STORAGE_KEY above.
-export const THEME_INIT_SCRIPT = `
-(function () {
-  try {
-    var stored = localStorage.getItem('${STORAGE_KEY}');
-    var dark = stored === 'light'
-      ? false
-      : stored === 'dark'
-        ? true
-        : window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (dark) document.documentElement.classList.add('dark');
-  } catch (e) {}
-})();
-`;
