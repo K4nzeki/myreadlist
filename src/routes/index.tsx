@@ -2455,6 +2455,10 @@ function TrackerApp({
                       <img
                         src={e.cover_url}
                         alt=""
+                        loading="lazy"
+                        decoding="async"
+                        width={96}
+                        height={144}
                         className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
                       />
                     ) : (
@@ -2711,6 +2715,10 @@ function TrackerApp({
                         <img
                           src={e.cover_url}
                           alt=""
+                          loading="lazy"
+                          decoding="async"
+                          width={64}
+                          height={96}
                           className="h-24 w-16 rounded-lg object-cover bg-muted shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
                         />
                       ) : (
@@ -3099,6 +3107,10 @@ function SearchDialog({
                 <img
                   src={r.coverUrl}
                   alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width={80}
+                  height={112}
                   className="h-28 w-20 shrink-0 rounded-md object-cover bg-muted"
                 />
               ) : (
@@ -3379,6 +3391,10 @@ function DiscoverTab({
                     <img
                       src={r.coverUrl}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
+                      width={80}
+                      height={128}
                       className="h-32 w-20 shrink-0 rounded-md object-cover bg-muted"
                     />
                   ) : (
