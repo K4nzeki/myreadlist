@@ -990,7 +990,10 @@ function TrackerApp({
   const stats = useMemo(() => {
     const s = {
       chapters: 0,
-      total: entries.length,
+      // "To Read" entries are a wishlist/queue, not titles you're actually
+      // tracking progress on — exclude them from the headline titles count
+      // (they still show up in their own stat pill and the To Read tab).
+      total: entries.filter((e) => e.status !== "To Read").length,
       rereads: 0,
       types: { Manga: 0, Manhwa: 0, Manhua: 0, Comic: 0 } as Record<EntryType, number>,
       statuses: { "To Read": 0, Reading: 0, Dropped: 0, Cancelled: 0, Finished: 0 } as Record<EntryStatus, number>,
@@ -2167,49 +2170,53 @@ function TrackerApp({
                           ))}
                         </select>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">Ch.</span>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            key={`m-${e.id}-chapter-${e.chapter}`}
-                            defaultValue={e.chapter}
-                            onBlur={(ev) => {
-                              const chapter = Number(ev.target.value) || 0;
-                              if (chapter !== e.chapter) void update(e.id, { chapter });
-                            }}
-                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
-                          />
-                          <button
-                            onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
-                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
-                          >
-                            +1
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">Reread</span>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            key={`m-${e.id}-reread-${e.reread}`}
-                            defaultValue={e.reread}
-                            onBlur={(ev) => {
-                              const reread = Number(ev.target.value) || 0;
-                              if (reread !== e.reread) void update(e.id, { reread });
-                            }}
-                            className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
-                          />
-                          <button
-                            onClick={() => void update(e.id, { reread: e.reread + 1 })}
-                            className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
-                          >
-                            +1
-                          </button>
-                        </div>
-                      </div>
-                      <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                      {mainTab !== "toread" && (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground shrink-0">Ch.</span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                key={`m-${e.id}-chapter-${e.chapter}`}
+                                defaultValue={e.chapter}
+                                onBlur={(ev) => {
+                                  const chapter = Number(ev.target.value) || 0;
+                                  if (chapter !== e.chapter) void update(e.id, { chapter });
+                                }}
+                                className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                              />
+                              <button
+                                onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
+                                className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                              >
+                                +1
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground shrink-0">Reread</span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                key={`m-${e.id}-reread-${e.reread}`}
+                                defaultValue={e.reread}
+                                onBlur={(ev) => {
+                                  const reread = Number(ev.target.value) || 0;
+                                  if (reread !== e.reread) void update(e.id, { reread });
+                                }}
+                                className="min-w-0 flex-1 h-10 rounded-md bg-input px-2 outline-none"
+                              />
+                              <button
+                                onClick={() => void update(e.id, { reread: e.reread + 1 })}
+                                className="shrink-0 h-10 px-3 rounded-md bg-secondary text-secondary-foreground text-xs font-medium"
+                              >
+                                +1
+                              </button>
+                            </div>
+                          </div>
+                          <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                        </>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -2233,16 +2240,20 @@ function TrackerApp({
                   <th className="w-12"></th>
                   <SortTh label="Title" k="title" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-4 py-2" />
                   <SortTh label="Type" k="type" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-28" />
-                  <SortTh label="Ch." k="chapter" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-24" align="right" />
+                  {mainTab !== "toread" && (
+                    <SortTh label="Ch." k="chapter" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-24" align="right" />
+                  )}
                   <SortTh label="Status" k="status" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-left px-2 py-2 w-32" />
-                  <SortTh label="Reread" k="reread" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-20" align="right" />
+                  {mainTab !== "toread" && (
+                    <SortTh label="Reread" k="reread" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right px-2 py-2 w-20" align="right" />
+                  )}
                   <th className="w-10" />
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-16 text-center text-muted-foreground">
+                    <td colSpan={mainTab === "toread" ? 6 : 8} className="px-4 py-16 text-center text-muted-foreground">
                       {emptyMessage}
                     </td>
                   </tr>
@@ -2323,9 +2334,11 @@ function TrackerApp({
                              }}
                             className="w-full bg-transparent outline-none focus:bg-input rounded px-2 py-1"
                           />
-                          <div className="px-2">
-                            <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
-                          </div>
+                          {mainTab !== "toread" && (
+                            <div className="px-2">
+                              <ChapterProgress chapter={e.chapter} total={e.total_chapters} />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -2343,27 +2356,29 @@ function TrackerApp({
                         ))}
                       </select>
                     </td>
-                    <td className="px-2 py-1.5">
-                      <div className="flex items-center gap-1 justify-end">
-                        <input
-                          type="number"
-                           key={`${e.id}-chapter-${e.chapter}`}
-                           defaultValue={e.chapter}
-                           onBlur={(ev) => {
-                             const chapter = Number(ev.target.value) || 0;
-                             if (chapter !== e.chapter) void update(e.id, { chapter });
-                           }}
-                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
-                        />
-                        <button
-                           onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
-                          className="opacity-0 group-hover:opacity-100 transition text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
-                          title="+1 chapter"
-                        >
-                          +1
-                        </button>
-                      </div>
-                    </td>
+                    {mainTab !== "toread" && (
+                      <td className="px-2 py-1.5">
+                        <div className="flex items-center gap-1 justify-end">
+                          <input
+                            type="number"
+                             key={`${e.id}-chapter-${e.chapter}`}
+                             defaultValue={e.chapter}
+                             onBlur={(ev) => {
+                               const chapter = Number(ev.target.value) || 0;
+                               if (chapter !== e.chapter) void update(e.id, { chapter });
+                             }}
+                            className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
+                          />
+                          <button
+                             onClick={() => void update(e.id, { chapter: e.chapter + 1 })}
+                            className="opacity-0 group-hover:opacity-100 transition text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
+                            title="+1 chapter"
+                          >
+                            +1
+                          </button>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-2 py-1.5">
                       <select
                         value={e.status}
@@ -2380,27 +2395,29 @@ function TrackerApp({
                         ))}
                       </select>
                     </td>
-                    <td className="px-2 py-1.5">
-                      <div className="flex items-center gap-1 justify-end">
-                        <input
-                          type="number"
-                           key={`${e.id}-reread-${e.reread}`}
-                           defaultValue={e.reread}
-                           onBlur={(ev) => {
-                             const reread = Number(ev.target.value) || 0;
-                             if (reread !== e.reread) void update(e.id, { reread });
-                           }}
-                          className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
-                        />
-                        <button
-                           onClick={() => void update(e.id, { reread: e.reread + 1 })}
-                          className="opacity-0 group-hover:opacity-100 transition text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
-                          title="+1 reread"
-                        >
-                          +1
-                        </button>
-                      </div>
-                    </td>
+                    {mainTab !== "toread" && (
+                      <td className="px-2 py-1.5">
+                        <div className="flex items-center gap-1 justify-end">
+                          <input
+                            type="number"
+                             key={`${e.id}-reread-${e.reread}`}
+                             defaultValue={e.reread}
+                             onBlur={(ev) => {
+                               const reread = Number(ev.target.value) || 0;
+                               if (reread !== e.reread) void update(e.id, { reread });
+                             }}
+                            className="w-16 bg-transparent text-right outline-none focus:bg-input rounded px-2 py-1"
+                          />
+                          <button
+                             onClick={() => void update(e.id, { reread: e.reread + 1 })}
+                            className="opacity-0 group-hover:opacity-100 transition text-xs px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground"
+                            title="+1 reread"
+                          >
+                            +1
+                          </button>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-2 py-1.5">
                       <button
                         onClick={() => {
