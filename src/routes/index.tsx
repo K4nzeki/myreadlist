@@ -1592,26 +1592,29 @@ function TrackerApp({
     [reorderEntries],
   );
 
-  const remove = async (id: string, message = "Title deleted") => {
-    const { data, error } = await supabase
-      .from("entries")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId)
-      .select("id")
-      .maybeSingle();
-    if (error) {
-      reportDatabaseError("Deleting the title", error);
-      return;
-    }
-    if (!data) {
-      reportDatabaseError("Deleting the title", { message: "No matching row was deleted." });
-      return;
-    }
-    setEntries((prev) => prev.filter((e) => e.id !== id));
-    setSyncError(null);
-    toast.success(message);
-  };
+  const remove = useCallback(
+    async (id: string, message = "Title deleted") => {
+      const { data, error } = await supabase
+        .from("entries")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId)
+        .select("id")
+        .maybeSingle();
+      if (error) {
+        reportDatabaseError("Deleting the title", error);
+        return;
+      }
+      if (!data) {
+        reportDatabaseError("Deleting the title", { message: "No matching row was deleted." });
+        return;
+      }
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      setSyncError(null);
+      toast.success(message);
+    },
+    [userId, reportDatabaseError],
+  );
 
   // Sign out, but first sweep away any entries that were left with the
   // untouched default "New title" / "New title 2" name — same rule used
@@ -1742,7 +1745,7 @@ function TrackerApp({
         }
       }
     },
-    [update],
+    [update, remove],
   );
 
   const addFromSearch = async (result: SearchResult, initialStatus: EntryStatus = "Reading") => {
