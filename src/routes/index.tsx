@@ -1171,6 +1171,7 @@ function TrackerApp({
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [toolbarHidden, setToolbarHidden] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isDesktop = useIsDesktop();
   const lastScrollY = useRef(0);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -2442,7 +2443,8 @@ function TrackerApp({
             className="flex-1 overflow-y-auto overflow-x-hidden scroll-touch safe-b"
           >
             {/* Mobile card list */}
-            <ul className="md:hidden divide-y divide-border">
+            {!isDesktop && (
+            <ul className="divide-y divide-border">
               {filtered.length === 0 && (
                 <li className="px-4 py-16 text-center text-muted-foreground text-sm">
                   {emptyMessage}
@@ -2625,8 +2627,9 @@ function TrackerApp({
                 </li>
               ))}
             </ul>
-            {hasMore && (
-              <div className="md:hidden px-4 py-4 flex justify-center">
+            )}
+            {!isDesktop && hasMore && (
+              <div className="px-4 py-4 flex justify-center">
                 <button
                   onClick={() => setVisibleCount((c) => c + VISIBLE_STEP)}
                   className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors"
@@ -2636,7 +2639,8 @@ function TrackerApp({
               </div>
             )}
 
-            <table className="hidden md:table w-full min-w-[620px] text-sm">
+            {isDesktop && (
+            <table className="w-full min-w-[620px] text-sm">
               <thead className="sticky top-0 bg-card/95 backdrop-blur-sm text-xs uppercase tracking-wide text-muted-foreground z-10 border-b border-border shadow-sm shadow-black/5">
                 <tr>
                   <th className="w-8"></th>
@@ -2879,8 +2883,9 @@ function TrackerApp({
                 ))}
               </tbody>
             </table>
-            {hasMore && (
-              <div className="hidden md:flex px-4 py-4 justify-center">
+            )}
+            {isDesktop && hasMore && (
+              <div className="px-4 py-4 flex justify-center">
                 <button
                   onClick={() => setVisibleCount((c) => c + VISIBLE_STEP)}
                   className="h-9 px-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary hover:border-primary/30 transition-colors"
