@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type TouchEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import { AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Compass, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, RefreshCw, Search, Sparkles, Star, Sun, User, X } from "lucide-react";
@@ -45,6 +45,11 @@ const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cov
 // excluded since it now lives on its own tab and would just filter the
 // library down to nothing.
 const LIBRARY_STATUSES: EntryStatus[] = STATUSES.filter((s) => s !== "To Read");
+
+// Left-to-right order of the primary view tabs, used to figure out which
+// tab a horizontal swipe should move to.
+const MAIN_TABS = ["library", "toread", "discover"] as const;
+type MainTab = (typeof MAIN_TABS)[number];
 
 // Matches an untouched auto-generated blank entry ("New title", "New title 2", …).
 // Shared by the blur-commit check, the sign-out sweep, and the tab/app-close sweep
@@ -874,7 +879,46 @@ function TrackerApp({
   // Which top-level view is showing: your full library (minus To Read,
   // which gets its own tab below), just the To Read pile, or the Discover
   // browser for finding new titles.
-  const [mainTab, setMainTab] = useState<"library" | "toread" | "discover">("library");
+  const [mainTab, setMainTab] = useState<MainTab>("library");
+
+  // Swipe left/right on the main content area to switch between the
+  // My List / To Read / Discover tabs, mirroring the tap-to-switch behavior
+  // of the tab row above. Tracked with refs (not state) since touch
+  // coordinates change on every frame and don't need to trigger renders.
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const swipeActive = useRef(false);
+  const anyDialogOpen =
+    panelOpen || profileOpen || mobileActionsOpen || statsDialogOpen || searchDialogOpen;
+
+  const onMainTouchStart = (e: TouchEvent) => {
+    if (anyDialogOpen || e.touches.length !== 1) {
+      swipeActive.current = false;
+      return;
+    }
+    swipeActive.current = true;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const onMainTouchEnd = (e: TouchEvent) => {
+    if (!swipeActive.current) return;
+    swipeActive.current = false;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const dx = touch.clientX - touchStartX.current;
+    const dy = touch.clientY - touchStartY.current;
+    // Require a clearly horizontal, deliberate swipe so vertical list
+    // scrolling never gets misread as a tab change.
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const idx = MAIN_TABS.indexOf(mainTab);
+    if (dx < 0 && idx < MAIN_TABS.length - 1) {
+      setMainTab(MAIN_TABS[idx + 1]);
+    } else if (dx > 0 && idx > 0) {
+      setMainTab(MAIN_TABS[idx - 1]);
+    }
+  };
+
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(
     typeof navigator !== "undefined" ? !navigator.onLine : false,
@@ -1917,7 +1961,12 @@ function TrackerApp({
 
 
       {/* Main grid */}
-      <main id="main-content" className="flex-1 min-h-0 flex relative">
+      <main
+        id="main-content"
+        className="flex-1 min-h-0 flex relative"
+        onTouchStart={onMainTouchStart}
+        onTouchEnd={onMainTouchEnd}
+      >
         {/* Table panel */}
         <section className="flex flex-col min-h-0 flex-1 border-r border-border">
         {mainTab === "discover" ? (
