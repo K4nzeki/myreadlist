@@ -78,6 +78,8 @@ export async function shareLink(opts: { title: string; text?: string; url: strin
   return "unsupported" as const;
 }
 
+/**
+ * Opens a URL:
  * - Native app: the in-app native browser (SFSafariViewController /
  *   Chrome Custom Tabs), so external sites never load inside the app's own
  *   WKWebView.
