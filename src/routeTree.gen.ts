@@ -10,12 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UUserIdRouteImport } from './routes/u.$userId'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -32,30 +44,38 @@ const UUserIdRoute = UUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/users': typeof UsersRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/u/$userId': typeof UUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/users': typeof UsersRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/u/$userId': typeof UUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/users': typeof UsersRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/u/$userId': typeof UUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/users' | '/u/$userId'
+  fullPaths: '/' | '/users' | '/privacy' | '/terms' | '/u/$userId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/users' | '/u/$userId'
-  id: '__root__' | '/' | '/users' | '/u/$userId'
+  to: '/' | '/users' | '/privacy' | '/terms' | '/u/$userId'
+  id: '__root__' | '/' | '/users' | '/privacy' | '/terms' | '/u/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UsersRoute: typeof UsersRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   UUserIdRoute: typeof UUserIdRoute
 }
 
@@ -75,6 +95,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/u/$userId': {
       id: '/u/$userId'
       path: '/u/$userId'
@@ -88,6 +122,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UsersRoute: UsersRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   UUserIdRoute: UUserIdRoute,
 }
 export const routeTree = rootRouteImport
