@@ -2166,30 +2166,18 @@ function TrackerApp({
           <div className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
         </div>
 
-        {/* Status filter tabs — tap a status to jump straight to it (My List tab
-            only; mirrors the Status dropdown in the toolbar below, just faster
-            to reach). First/no filter reads as "All". */}
-        <div className="relative sm:hidden -mx-1">
-          <div className="flex items-center gap-1 flex-nowrap overflow-x-auto no-scrollbar px-1">
-            {mainTab === "library" &&
-              LIBRARY_STATUSES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatusFilter((cur) => (cur === s ? "" : s))}
-                  className={`shrink-0 h-8 px-3.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    statusFilter === s
-                      ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-          </div>
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent flex items-center justify-end">
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground -rotate-90 mr-0.5" />
-          </div>
+        {/* Total-by-type breakdown, mobile only — desktop already shows this
+            inline next to the stat cards above (the "hidden md:flex" block).
+            Status filtering is still one tap away via the Status dropdown
+            in the toolbar below, this row is just a quick read of totals. */}
+        <div className="flex md:hidden items-center gap-1.5 px-3 h-9 rounded-lg border border-border/70 bg-card/40 overflow-x-auto no-scrollbar">
+          {TYPES.map((t, i) => (
+            <span key={t} className="text-xs whitespace-nowrap">
+              {i > 0 && <span className="text-border mr-1.5">·</span>}
+              <span className="text-foreground font-semibold">{stats.types[t]}</span>{" "}
+              <span className="text-muted-foreground">{t}</span>
+            </span>
+          ))}
         </div>
 
         {/* Status pills — own single-line row on mobile so they don't fight the stat-card scroller */}
