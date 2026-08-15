@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import {
   AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
   ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu,
-  Moon, Pencil, RefreshCw, Search, Share2, Sparkles, Star, Sun, User, X,
+  Moon, MoreVertical, Pencil, RefreshCw, Search, Share2, Sparkles, Star, Sun, User, X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
@@ -1231,6 +1231,9 @@ function TrackerApp({
   // blanking a title. A copy button sits next to it for grabbing the title
   // text without risking an edit at all.
   const [editingTitleId, setEditingTitleId] = useState<string | number | null>(null);
+  // Which mobile card's edit/reorder/delete overflow menu is open, if any —
+  // only one at a time, same pattern as editingTitleId.
+  const [cardMenuOpenId, setCardMenuOpenId] = useState<string | number | null>(null);
   const copyTitle = async (title: string) => {
     try {
       await navigator.clipboard.writeText(title);
@@ -2601,7 +2604,7 @@ function TrackerApp({
                           />
                         ) : (
                           <>
-                            <span className="min-w-0 flex-1 break-words px-2 py-1">{e.title}</span>
+                            <span className="min-w-0 flex-1 truncate px-2 py-1">{e.title}</span>
                             <button
                               type="button"
                               onClick={() => void copyTitle(e.title)}
@@ -2611,48 +2614,76 @@ function TrackerApp({
                             >
                               <Copy className="h-3.5 w-3.5" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingTitleId(e.id)}
-                              aria-label={`Edit title of ${e.title}`}
-                              title="Edit title"
-                              className="shrink-0 h-7 w-7 grid place-items-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
                           </>
                         )}
-                        <div className="flex flex-col shrink-0">
+                        <div className="relative shrink-0">
                           <button
                             type="button"
-                            onClick={() => moveEntry(e.id, -1)}
-                            disabled={!canReorder}
-                            aria-label={`Move ${e.title} up`}
-                            title={canReorder ? "Move up" : "Clear filters & sorting to reorder"}
-                            className="h-4 w-9 grid place-items-center text-muted-foreground disabled:opacity-30"
+                            onClick={() => setCardMenuOpenId((cur) => (cur === e.id ? null : e.id))}
+                            aria-label={`More actions for ${e.title}`}
+                            aria-expanded={cardMenuOpenId === e.id}
+                            className="h-7 w-7 grid place-items-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
                           >
-                            <ChevronUp className="h-3.5 w-3.5" />
+                            <MoreVertical className="h-3.5 w-3.5" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => moveEntry(e.id, 1)}
-                            disabled={!canReorder}
-                            aria-label={`Move ${e.title} down`}
-                            title={canReorder ? "Move down" : "Clear filters & sorting to reorder"}
-                            className="h-4 w-9 grid place-items-center text-muted-foreground disabled:opacity-30"
-                          >
-                            <ChevronDown className="h-3.5 w-3.5" />
-                          </button>
+                          {cardMenuOpenId === e.id && (
+                            <>
+                              {/* Transparent full-screen catcher so tapping anywhere outside
+                                  closes the menu, same pattern as the mobile actions sheet. */}
+                              <div className="fixed inset-0 z-40" onClick={() => setCardMenuOpenId(null)} />
+                              <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-border bg-card shadow-lg overflow-hidden py-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingTitleId(e.id);
+                                    setCardMenuOpenId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Edit title
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!canReorder}
+                                  onClick={() => {
+                                    moveEntry(e.id, -1);
+                                    setCardMenuOpenId(null);
+                                  }}
+                                  title={canReorder ? undefined : "Clear filters & sorting to reorder"}
+                                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                  Move up
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!canReorder}
+                                  onClick={() => {
+                                    moveEntry(e.id, 1);
+                                    setCardMenuOpenId(null);
+                                  }}
+                                  title={canReorder ? undefined : "Clear filters & sorting to reorder"}
+                                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                  Move down
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCardMenuOpenId(null);
+                                    if (confirm(`Delete "${e.title}"?`)) remove(e.id);
+                                  }}
+                                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-destructive hover:bg-secondary border-t border-border/70"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                  Delete
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Delete "${e.title}"?`)) remove(e.id);
-                          }}
-                          aria-label="Delete title"
-                          className="shrink-0 h-9 w-9 grid place-items-center rounded-md text-muted-foreground active:text-destructive text-xl leading-none"
-                        >
-                          ×
-                        </button>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <select
