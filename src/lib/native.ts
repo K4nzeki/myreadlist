@@ -37,10 +37,9 @@ export async function initNativeShell() {
     // above the keyboard instead of being covered by it — without this the
     // whole app reads as a website that never learned iOS has a keyboard.
     await Keyboard.setResizeMode({ mode: KeyboardResize.Native });
-    await Keyboard.setScrollAssist(true);
   } catch {
     // Not available on this platform/version — inputs still work, just
-    // without the extra scroll-into-view assist.
+    // without the resize behavior.
   }
 
   // Give the shell a moment to hydrate before dropping the splash screen so
