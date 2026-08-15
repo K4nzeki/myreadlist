@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Loader2, Search, User, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { openExternal } from "@/lib/native";
 
 export const Route = createFileRoute("/u/$userId")({
   component: PublicList,
@@ -342,6 +343,16 @@ function PublicList() {
                           href={`https://anilist.co/search/manga?search=${encodeURIComponent(e.title)}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(ev) => {
+                            // Inside the native app, force this through the
+                            // system browser instead of the app's own
+                            // WKWebView so external sites never load as if
+                            // they were part of the app.
+                            ev.preventDefault();
+                            void openExternal(
+                              `https://anilist.co/search/manga?search=${encodeURIComponent(e.title)}`,
+                            );
+                          }}
                           aria-label={`Open ${e.title} details on AniList`}
                           title={`Open "${e.title}" on AniList`}
                           className="block rounded-md transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
