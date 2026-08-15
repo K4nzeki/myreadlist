@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { SUPPORT_EMAIL } from "./shared";
 
 export const Route = createFileRoute("/terms")({
   component: TermsOfService,
@@ -11,10 +12,11 @@ export const Route = createFileRoute("/terms")({
   }),
 });
 
-// TODO before submitting to the App Store: replace the placeholders below
-// (contact email + "Last updated" date), and have this reviewed if you
-// want binding legal terms rather than a plain-language baseline.
-const CONTACT_EMAIL = "support@myreadlist.app"; // TODO: replace with your real support address
+// TODO before submitting to the App Store: replace the placeholder date
+// below (see SUPPORT_EMAIL in routes/shared.ts for the contact address),
+// and have this reviewed if you want binding legal terms rather than a
+// plain-language baseline.
+const CONTACT_EMAIL = SUPPORT_EMAIL;
 const LAST_UPDATED = "August 15, 2026"; // TODO: keep in sync with edits to this page
 
 function TermsOfService() {
@@ -72,6 +74,21 @@ function TermsOfService() {
             <p>
               Title search results and cover art come from third-party catalog services
               (MyAnimeList/Jikan, Kitsu). We don't control that data's accuracy or availability.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold mb-2">Public content & reporting abuse</h2>
+            <p>
+              If you set a username, it appears publicly on your shared list page and in the
+              browse/leaderboard views. We have zero tolerance for usernames or list content used
+              to impersonate, harass, or abuse others. If you see a username or public list that
+              violates these terms, report it to{" "}
+              <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-2">
+                {CONTACT_EMAIL}
+              </a>{" "}
+              (a "Report" link is also available on every public list page) and we will review it
+              and remove or suspend the offending account.
             </p>
           </section>
 
