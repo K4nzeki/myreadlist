@@ -2,12 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type TouchEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
-import { AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp, ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu, Moon, Pencil, RefreshCw, Search, Sparkles, Star, Sun, User, X } from "lucide-react";
+import {
+  AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
+  ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu,
+  Moon, Pencil, RefreshCw, Search, Share2, Sparkles, Star, Sun, User, X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/trackers";
 import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
+import { shareLink } from "@/lib/native";
 import {
   TYPES,
   STATUSES,
@@ -1022,6 +1027,20 @@ function AuthPanel() {
                     )}
                     <span>{msg}</span>
                   </div>
+                )}
+
+                {mode === "signup" && (
+                  <p className="text-[11px] text-center text-muted-foreground -mt-1">
+                    By creating an account you agree to our{" "}
+                    <Link to="/terms" className="underline underline-offset-2 hover:text-foreground">
+                      Terms
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </p>
                 )}
               </form>
 
@@ -3618,6 +3637,10 @@ function ProfileDialog({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -3678,6 +3701,22 @@ function ProfileDialog({
     }
   };
 
+  const deleteAccount = async () => {
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      const { error } = await supabase.rpc("delete_own_account");
+      if (error) throw error;
+      // The account (and every row that referenced it) is gone server-side.
+      // Clear the local session and send them home.
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch (err) {
+      setDeleteError((err as Error).message || "Couldn't delete your account. Try again.");
+      setDeleteBusy(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 backdrop-blur-sm p-4">
       <form
@@ -3715,6 +3754,27 @@ function ProfileDialog({
             />
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={async () => {
+            const url = `${window.location.origin}/u/${userId}`;
+            const result = await shareLink({
+              title: "My reading list on Panels",
+              text: username ? `Check out ${username}'s reading list on Panels` : "Check out my reading list on Panels",
+              url,
+            });
+            if (result === "copied") toast.success("Link copied");
+            if (result === "unsupported") {
+              await navigator.clipboard?.writeText(url);
+              toast.success("Link copied");
+            }
+          }}
+          className="h-10 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors flex items-center justify-center gap-2"
+        >
+          <Share2 className="h-4 w-4" />
+          Share your list
+        </button>
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">Email</label>
@@ -3781,7 +3841,96 @@ function ProfileDialog({
             <span>{msg.text}</span>
           </div>
         )}
+
+        <div className="mt-1 flex items-center justify-center gap-3 text-[11px] text-muted-foreground">
+          <Link to="/privacy" className="hover:text-foreground underline underline-offset-2">
+            Privacy Policy
+          </Link>
+          <span>·</span>
+          <Link to="/terms" className="hover:text-foreground underline underline-offset-2">
+            Terms of Service
+          </Link>
+        </div>
+
+        <div className="mt-2 pt-4 border-t border-border/70 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium text-foreground">Delete account</p>
+            <p className="text-[11px] text-muted-foreground">
+              Permanently deletes your account and all your data.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDeleteConfirmText("");
+              setDeleteError(null);
+              setDeleteOpen(true);
+            }}
+            className="h-9 px-3 shrink-0 rounded-lg border border-destructive/40 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors"
+          >
+            Delete…
+          </button>
+        </div>
       </form>
+
+      {deleteOpen && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm flex flex-col gap-4 rounded-2xl border border-destructive/30 bg-card shadow-2xl shadow-black/10 p-6">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-destructive/15 border border-destructive/30 grid place-items-center">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+              </div>
+              <h2 className="text-base font-semibold">Delete your account?</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              This permanently deletes your account, reading list, stats, and any public list
+              page tied to it. This can't be undone.
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">
+                Type <span className="font-semibold text-foreground">DELETE</span> to confirm
+              </label>
+              <input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                autoFocus
+                className="w-full h-11 px-3 rounded-lg bg-input text-sm outline-none border border-transparent focus:border-destructive/50 focus:ring-2 focus:ring-destructive/30 transition-all"
+              />
+            </div>
+            {deleteError && (
+              <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(false)}
+                disabled={deleteBusy}
+                className="flex-1 h-10 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteAccount}
+                disabled={deleteBusy || deleteConfirmText !== "DELETE"}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-40 transition-all flex items-center justify-center gap-1.5"
+              >
+                {deleteBusy ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  "Delete account"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
