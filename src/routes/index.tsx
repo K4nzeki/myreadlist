@@ -2172,7 +2172,7 @@ function TrackerApp({
             inline next to the stat cards above (the "hidden md:flex" block).
             Status filtering is still one tap away via the Status dropdown
             in the toolbar below, this row is just a quick read of totals. */}
-        <div className="flex md:hidden items-center gap-2.5 px-3 h-9 rounded-lg border border-border/70 bg-card/40 overflow-x-auto no-scrollbar">
+        <div className="flex md:hidden items-center justify-center gap-2.5 px-3 h-9 rounded-lg border border-border/70 bg-card/40 overflow-x-auto no-scrollbar">
           {TYPES.map((t, i) => (
             <span key={t} className="flex items-center gap-2.5 text-xs whitespace-nowrap">
               {i > 0 && <span className="text-muted-foreground/40" aria-hidden="true">·</span>}
