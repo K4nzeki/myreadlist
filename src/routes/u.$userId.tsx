@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Loader2, Search, User, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Flag, Loader2, Search, User, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { openExternal } from "@/lib/native";
+import { SUPPORT_EMAIL } from "./shared";
 
 export const Route = createFileRoute("/u/$userId")({
   component: PublicList,
@@ -222,13 +223,28 @@ function PublicList() {
       </div>
 
       <div className="relative z-10 mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-10">
-        <Link
-          to="/users"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={16} />
-          Back to users
-        </Link>
+        <div className="flex items-center justify-between gap-3">
+          <Link
+            to="/users"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back to users
+          </Link>
+
+          <a
+            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+              `Reporting a Panels user: ${username}`,
+            )}&body=${encodeURIComponent(
+              `Reporting the public list at ${typeof window !== "undefined" ? window.location.href : `/u/${userId}`}\n\nReason:\n`,
+            )}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+            aria-label={`Report ${username}'s list`}
+          >
+            <Flag size={13} />
+            Report
+          </a>
+        </div>
 
         <div className="mt-4 flex items-center gap-3.5">
           <div className="h-12 w-12 shrink-0 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-primary font-semibold">
