@@ -2,6 +2,12 @@
 // Tracker route and the lazy-loaded StatsDialog. Kept dependency-free
 // (no React, no Supabase) so these are cheap to unit test in isolation.
 
+// Single source of truth for the app's support address, used on the
+// Privacy Policy, Terms of Service, and the "report this list" link on
+// public profile pages. TODO before App Store submission: replace with a
+// real, monitored inbox — reviewers do check this.
+export const SUPPORT_EMAIL = "support@myreadlist.app";
+
 export type EntryType = "Manga" | "Manhwa" | "Manhua" | "Comic";
 export type EntryStatus = "To Read" | "Reading" | "Dropped" | "Cancelled" | "Finished";
 
