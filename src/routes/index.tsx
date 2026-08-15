@@ -2601,7 +2601,7 @@ function TrackerApp({
                           />
                         ) : (
                           <>
-                            <span className="min-w-0 flex-1 truncate px-2 py-1">{e.title}</span>
+                            <span className="min-w-0 flex-1 break-words px-2 py-1">{e.title}</span>
                             <button
                               type="button"
                               onClick={() => void copyTitle(e.title)}
