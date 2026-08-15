@@ -15,6 +15,7 @@ import { THEME_INIT_SCRIPT } from "@/hooks/theme-init-script";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { initNativeShell, isNative } from "../lib/native";
 
 function NotFoundComponent() {
   return (
@@ -135,19 +136,27 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  // Register the PWA service worker. Production-only and client-only so it
-  // never affects local dev or SSR. It caches the app shell and static
-  // assets for offline use — API calls to Supabase are left untouched.
+  // Register the PWA service worker. Production-only, client-only, and
+  // web-only — the native iOS/Android app has no notion of "installing" a
+  // PWA and Capacitor's own WKWebView caching would conflict with it, so we
+  // skip this entirely there. API calls to Supabase are always left untouched.
   useEffect(() => {
     if (
       import.meta.env.PROD &&
       typeof window !== "undefined" &&
-      "serviceWorker" in navigator
+      "serviceWorker" in navigator &&
+      !isNative()
     ) {
       navigator.serviceWorker.register("/sw.js").catch(() => {
         // Non-fatal: installability is a progressive enhancement.
       });
     }
+  }, []);
+
+  // Native-only: status bar styling, splash screen hide, Android back
+  // button handling. No-op on the web.
+  useEffect(() => {
+    void initNativeShell();
   }, []);
 
   return (
