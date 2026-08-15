@@ -2245,7 +2245,7 @@ function TrackerApp({
           header) so it stays visible regardless of header/toolbar collapse
           state. */}
       <div className="border-b border-border bg-card/20 px-1.5 sm:px-6 shrink-0 overflow-x-auto no-scrollbar">
-        <nav role="tablist" aria-label="Views" className="flex items-center gap-0.5 sm:gap-1 w-max min-w-full">
+        <nav role="tablist" aria-label="Views" className="flex items-center justify-center gap-0.5 sm:gap-1 w-max min-w-full mx-auto">
           {(
             [
               { key: "library", label: "My List", icon: BookOpen },
