@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, Share, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isNative } from "@/lib/native";
 
 // Local storage key used to remember a user's "not now" dismissal so the
 // banner doesn't nag them on every visit.
@@ -54,6 +55,10 @@ export default function InstallAppPrompt() {
   const [showIosSteps, setShowIosSteps] = useState(false);
 
   useEffect(() => {
+    // Already inside the native app shell — there's nothing to "install",
+    // this isn't a browser tab. Showing "Add to Home Screen" here would be
+    // confusing (and a red flag for App Store review).
+    if (isNative()) return;
     if (isStandalone() || wasRecentlyDismissed()) return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
