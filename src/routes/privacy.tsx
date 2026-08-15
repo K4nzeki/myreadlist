@@ -1,5 +1,6 @@
-  import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { SUPPORT_EMAIL } from "./shared";
 
 export const Route = createFileRoute("/privacy")({
   component: PrivacyPolicy,
@@ -11,12 +12,12 @@ export const Route = createFileRoute("/privacy")({
   }),
 });
 
-// TODO before submitting to the App Store: replace the two placeholders
-// below (contact email + "Last updated" date) with real values, and get
-// this reviewed if you're not the sole operator of the service. This copy
-// intentionally matches what the app actually does — update it here first
-// if you change what data you collect.
-const CONTACT_EMAIL = "support@myreadlist.app"; // TODO: replace with your real support address
+// TODO before submitting to the App Store: replace the placeholder date
+// below with a real value (see SUPPORT_EMAIL in routes/shared.ts for the
+// contact address), and get this reviewed if you're not the sole operator
+// of the service. This copy intentionally matches what the app actually
+// does — update it here first if you change what data you collect.
+const CONTACT_EMAIL = SUPPORT_EMAIL;
 const LAST_UPDATED = "August 15, 2026"; // TODO: keep in sync with edits to this page
 
 function PrivacyPolicy() {
