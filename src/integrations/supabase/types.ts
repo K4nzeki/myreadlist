@@ -161,6 +161,10 @@ export type Database = {
       }
     }
     Functions: {
+      delete_own_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       username_available: {
         Args: { p_username: string }
         Returns: boolean
