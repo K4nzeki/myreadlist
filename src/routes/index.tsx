@@ -2062,26 +2062,20 @@ function TrackerApp({
         </div>
       )}
       {/* Header + stats */}
-      <header className="relative border-b border-border px-3 sm:px-6 py-4 sm:py-4 flex flex-col gap-3.5 sm:gap-3 overflow-hidden">
+      <header className="relative border-b border-border px-4 sm:px-6 py-4 sm:py-4 flex flex-col gap-4 sm:gap-3 overflow-hidden">
         <div className="pointer-events-none absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-primary/10 blur-[100px]" />
 
-        {/* Top row: brand + primary nav */}
-        <div className="relative flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/30 grid place-items-center shrink-0">
-              <Layers className="h-4 w-4 text-primary" />
-            </div>
-            <div className="flex items-baseline gap-2 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-primary leading-none">Panels</h1>
-              <span className="hidden sm:inline text-xs text-muted-foreground">reading tracker</span>
-            </div>
-          </div>
-
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="hidden lg:inline text-xs text-muted-foreground mr-1.5 whitespace-nowrap">
+        {/* Top row: brand + avatar */}
+        <div className="relative flex items-start justify-between gap-2 sm:gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-none">Panels</h1>
+            <p className="text-sm text-muted-foreground mt-1.5 truncate">
               {timeGreeting()}
               {username ? `, ${username}` : ""}
-            </span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               onClick={toggleTheme}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
@@ -2102,6 +2096,13 @@ function TrackerApp({
               {panelOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </button>
             <button
+              onClick={() => setProfileOpen(true)}
+              aria-label="Open profile"
+              className="shrink-0 h-9 w-9 sm:h-10 sm:w-10 grid place-items-center rounded-full bg-primary/20 border border-primary/30 text-primary hover:bg-primary/25 transition-colors"
+            >
+              <User className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
+            </button>
+            <button
               onClick={() => setMobileActionsOpen((v) => !v)}
               aria-label="Toggle menu"
               aria-expanded={mobileActionsOpen}
@@ -2119,9 +2120,15 @@ function TrackerApp({
         {/* Stat cards row */}
         <div className="relative">
           <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar snap-x snap-mandatory -mx-3 px-3 sm:mx-0 sm:px-0">
-            <div className="snap-start"><StatCard icon={BookOpen} label="Chapters" value={stats.chapters.toLocaleString()} accent="primary" /></div>
-            <div className="snap-start"><StatCard icon={Layers} label="Titles" value={stats.total} accent="finished" /></div>
-            <div className="snap-start"><StatCard icon={RefreshCw} label="Rereads" value={stats.rereads} accent="ongoing" /></div>
+            <div className="snap-start w-full sm:w-auto">
+              <StatSummaryCard
+                stats={[
+                  { label: "Chapters", value: stats.chapters.toLocaleString() },
+                  { label: "Titles", value: stats.total },
+                  { label: "Rereads", value: stats.rereads },
+                ]}
+              />
+            </div>
             <div className="hidden md:flex items-center gap-1.5 px-3 rounded-lg border border-border/70 bg-card/40 shrink-0">
               {TYPES.map((t, i) => (
                 <span key={t} className="text-xs whitespace-nowrap">
@@ -2131,18 +2138,39 @@ function TrackerApp({
                 </span>
               ))}
             </div>
-            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-              {LIBRARY_STATUSES.map((s) => (
-                <StatusPill key={s} status={s} count={stats.statuses[s]} />
-              ))}
-            </div>
           </div>
           {/* Edge fade hinting horizontal scroll, mobile only */}
           <div className="sm:hidden pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-background to-transparent" />
         </div>
 
+        {/* Status filter tabs — tap a status to jump straight to it (My List tab
+            only; mirrors the Status dropdown in the toolbar below, just faster
+            to reach). First/no filter reads as "All". */}
+        <div className="relative sm:hidden -mx-1">
+          <div className="flex items-center gap-1 flex-nowrap overflow-x-auto no-scrollbar px-1">
+            {mainTab === "library" &&
+              LIBRARY_STATUSES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatusFilter((cur) => (cur === s ? "" : s))}
+                  className={`shrink-0 h-8 px-3.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    statusFilter === s
+                      ? "bg-secondary text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+          </div>
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent flex items-center justify-end">
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground -rotate-90 mr-0.5" />
+          </div>
+        </div>
+
         {/* Status pills — own single-line row on mobile so they don't fight the stat-card scroller */}
-        <div className="sm:hidden flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar -mx-3 px-3">
+        <div className="hidden sm:flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar -mx-3 px-3">
           {LIBRARY_STATUSES.map((s) => (
             <StatusPill key={s} status={s} count={stats.statuses[s]} />
           ))}
@@ -2150,11 +2178,6 @@ function TrackerApp({
 
         {/* Action row */}
         <div className="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
-          <span className="text-xs text-muted-foreground lg:hidden">
-            {timeGreeting()}
-            {username ? `, ${username}` : ""}
-          </span>
-
           {/* Mobile: hamburger opens a bottom sheet (see mobileActionsOpen below the header) instead of this being an inline dropdown */}
 
           {/* Desktop / tablet: inline buttons */}
@@ -2243,78 +2266,79 @@ function TrackerApp({
         </nav>
       </div>
 
-      {/* Mobile action menu — a small bottom sheet triggered by the hamburger button, instead of an inline dropdown pushing the header content down. */}
+      {/* Mobile action menu — a small bottom sheet triggered by the hamburger button, instead of an inline dropdown pushing the header content down. Styled as a light card (deliberately contrasting with the dark app chrome, even in dark mode) with the destructive Sign out action set apart. */}
       {mobileActionsOpen && (
         <div className="sm:hidden fixed inset-0 z-40" role="dialog" aria-modal="true" aria-label="Menu">
           <div
             className="absolute inset-0 bg-background/60 backdrop-blur-sm animate-in fade-in duration-150"
             onClick={() => setMobileActionsOpen(false)}
           />
-          <div className="absolute inset-x-0 bottom-0 safe-b rounded-t-2xl border-t border-border bg-card shadow-lg animate-in slide-in-from-bottom duration-200 overflow-hidden">
-            <div className="mx-auto mt-2.5 mb-1 h-1 w-10 rounded-full bg-border" />
-            <nav className="py-1.5">
-              <button
-                onClick={() => {
-                  setProfileOpen(true);
-                  setMobileActionsOpen(false);
-                }}
-                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
-              >
-                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                Profile
-              </button>
-              <button
-                onClick={() => {
-                  setStatsDialogOpen(true);
-                  setMobileActionsOpen(false);
-                }}
-                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
-              >
-                <BarChart3 className="h-4 w-4 text-muted-foreground shrink-0" />
-                Statistics
-              </button>
-              <button
-                onClick={() => {
-                  void backfillCovers();
-                  setMobileActionsOpen(false);
-                }}
-                disabled={backfilling}
-                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors disabled:opacity-60"
-              >
-                {backfilling ? (
-                  <Loader2 className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4 text-muted-foreground shrink-0" />
-                )}
-                Fetch covers
-              </button>
-              <Link
-                to="/users"
-                onClick={() => setMobileActionsOpen(false)}
-                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
-              >
-                <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                Browse Users
-              </Link>
-              <button
-                onClick={() => {
-                  setPanelOpen(true);
-                  setMobileActionsOpen(false);
-                }}
-                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium active:bg-secondary transition-colors"
-              >
-                <ClipboardList className="h-4 w-4 text-muted-foreground shrink-0" />
-                Import
-              </button>
-              <div className="h-px bg-border my-1" />
-              <button
-                onClick={() => void signOutAndCleanup()}
-                className="flex items-center gap-3 w-full h-11 px-4 text-sm font-medium text-destructive active:bg-destructive/10 transition-colors"
-              >
-                <X className="h-4 w-4 shrink-0" />
-                Sign out
-              </button>
-            </nav>
+          <div className="absolute inset-x-0 bottom-0 safe-b px-3 pb-3 flex flex-col gap-2 animate-in slide-in-from-bottom duration-200">
+            <div className="rounded-2xl bg-white shadow-xl overflow-hidden">
+              <div className="mx-auto mt-2.5 mb-1 h-1 w-10 rounded-full bg-neutral-300" />
+              <nav className="py-1">
+                <button
+                  onClick={() => {
+                    setProfileOpen(true);
+                    setMobileActionsOpen(false);
+                  }}
+                  className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 text-[15px] font-medium text-neutral-900 active:bg-neutral-100 transition-colors border-b border-neutral-200/80"
+                >
+                  <User className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
+                  Profile
+                </button>
+                <button
+                  onClick={() => {
+                    setStatsDialogOpen(true);
+                    setMobileActionsOpen(false);
+                  }}
+                  className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 text-[15px] font-medium text-neutral-900 active:bg-neutral-100 transition-colors border-b border-neutral-200/80"
+                >
+                  <BarChart3 className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
+                  Statistics
+                </button>
+                <button
+                  onClick={() => {
+                    void backfillCovers();
+                    setMobileActionsOpen(false);
+                  }}
+                  disabled={backfilling}
+                  className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 text-[15px] font-medium text-neutral-900 active:bg-neutral-100 transition-colors disabled:opacity-60 border-b border-neutral-200/80"
+                >
+                  {backfilling ? (
+                    <Loader2 className="h-[18px] w-[18px] text-neutral-500 shrink-0 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
+                  )}
+                  {backfilling ? "Fetching covers…" : "Fetch covers"}
+                </button>
+                <Link
+                  to="/users"
+                  onClick={() => setMobileActionsOpen(false)}
+                  className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 text-[15px] font-medium text-neutral-900 active:bg-neutral-100 transition-colors border-b border-neutral-200/80"
+                >
+                  <User className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
+                  Browse Users
+                </Link>
+                <button
+                  onClick={() => {
+                    setPanelOpen(true);
+                    setMobileActionsOpen(false);
+                  }}
+                  className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 text-[15px] font-medium text-neutral-900 active:bg-neutral-100 transition-colors"
+                >
+                  <ClipboardList className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
+                  Import
+                </button>
+              </nav>
+            </div>
+            <button
+              onClick={() => void signOutAndCleanup()}
+              className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 rounded-2xl bg-white shadow-xl text-[15px] font-medium text-red-600 active:bg-red-50 transition-colors"
+            >
+              <X className="h-[18px] w-[18px] shrink-0" />
+              Sign out
+            </button>
           </div>
         </div>
       )}
@@ -2371,12 +2395,12 @@ function TrackerApp({
             }`}
           >
             <div className="relative w-full sm:flex-1 sm:min-w-[8rem]">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder={mainTab === "toread" ? "Filter your To Read pile…" : "Filter your list…"}
-                className="w-full h-9 sm:h-9 pl-9 pr-3 rounded-full bg-input text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+                placeholder={mainTab === "toread" ? "Filter your To Read pile…" : "Search"}
+                className="w-full h-11 sm:h-9 pl-10 pr-3 rounded-2xl sm:rounded-full bg-secondary/70 text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
               />
             </div>
 
@@ -2515,14 +2539,14 @@ function TrackerApp({
           >
             {/* Mobile card list */}
             {!isDesktop && (
-            <ul className="divide-y divide-border">
+            <ul className="flex flex-col gap-2.5 px-3 py-3">
               {filtered.length === 0 && (
                 <li className="px-4 py-16 text-center text-muted-foreground text-sm">
                   {emptyMessage}
                 </li>
               )}
               {visible.map((e) => (
-                <li key={e.id} className={`px-3 py-3 ${statusRowBorder(e.status)}`}>
+                <li key={e.id} className={`rounded-2xl border-y border-r border-border/70 bg-card px-3 py-3 ${statusRowBorder(e.status)}`}>
                   <div className="flex items-stretch gap-3">
                     {e.cover_url ? (
                       <img
@@ -3539,68 +3563,41 @@ function ChapterProgress({ chapter, total }: { chapter: number; total: number | 
     // No known total (never enriched, or the source had no chapter count) —
     // show the chapter count on its own instead of rendering nothing.
     return (
-      <div className="text-[10px] text-muted-foreground tabular-nums">
-        Ch. {chapter} · total chapters unknown
+      <div className="text-xs text-muted-foreground tabular-nums">
+        Ch. {chapter} · total unknown
       </div>
     );
   }
   const pct = Math.min(100, Math.round((chapter / total) * 100));
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+    <div className="flex flex-col gap-1.5">
+      <span className="text-xs text-muted-foreground tabular-nums">
+        Ch. {chapter} of {total} · {pct}%
+      </span>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
         <div
           className="h-full rounded-full bg-primary transition-[width]"
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-        {chapter}/{total} · {pct}%
-      </span>
     </div>
   );
 }
 
-const STAT_CARD_ACCENTS = {
-  primary: {
-    card: "border-primary/25 bg-primary/8",
-    badge: "bg-primary/20 text-primary",
-    value: "text-primary",
-  },
-  finished: {
-    card: "border-finished/25 bg-finished/8",
-    badge: "bg-finished/20 text-finished",
-    value: "text-finished",
-  },
-  ongoing: {
-    card: "border-ongoing/25 bg-ongoing/8",
-    badge: "bg-ongoing/20 text-ongoing",
-    value: "text-ongoing",
-  },
-} as const;
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  accent = "primary",
-}: {
-  icon: typeof BookOpen;
-  label: string;
-  value: string | number;
-  accent?: keyof typeof STAT_CARD_ACCENTS;
-}) {
-  const colors = STAT_CARD_ACCENTS[accent];
+function StatSummaryCard({ stats }: { stats: { label: string; value: string | number }[] }) {
   return (
-    <div className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border shrink-0 ${colors.card}`}>
-      <div className={`h-8 w-8 rounded-full grid place-items-center shrink-0 ${colors.badge}`}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="flex flex-col leading-tight">
-        <span className={`text-lg font-bold tabular-nums ${colors.value}`}>{value}</span>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
-          {label}
-        </span>
-      </div>
+    <div className="flex items-stretch rounded-2xl border border-border/70 bg-gradient-to-br from-card via-card to-secondary/40 overflow-hidden w-full sm:w-auto">
+      {stats.map((s, i) => (
+        <div
+          key={s.label}
+          className={`flex-1 sm:flex-initial sm:min-w-[6.5rem] flex flex-col items-center justify-center gap-0.5 px-3 py-3.5 ${
+            i > 0 ? "border-l border-border/60" : ""
+          }`}
+        >
+          <span className="text-xl sm:text-2xl font-bold tabular-nums leading-none">{s.value}</span>
+          <span className="text-[11px] text-muted-foreground whitespace-nowrap">{s.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
