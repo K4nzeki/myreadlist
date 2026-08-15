@@ -12,7 +12,7 @@ import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/tracke
 import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
-import { shareLink } from "@/lib/native";
+import { hapticSuccess, hapticTick, hapticWarning, shareLink } from "@/lib/native";
 import {
   TYPES,
   STATUSES,
@@ -1583,6 +1583,7 @@ function TrackerApp({
       // it lands in the month they actually finished it, regardless of the
       // server's UTC offset.
       if (before && typeof patch.status === "string" && before.status !== "Finished" && (data as Entry).status === "Finished") {
+        void hapticSuccess();
         const { error: logError } = await supabase.from("completion_log").insert({
           user_id: userId,
           entry_id: id,
@@ -1603,6 +1604,7 @@ function TrackerApp({
       // local calendar day, same reasoning as completion_log's local
       // month.
       if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter) {
+        if (patch.chapter > before.chapter) void hapticTick();
         const { error: logError } = await supabase.from("chapter_log").insert({
           user_id: userId,
           entry_id: id,
@@ -1642,6 +1644,7 @@ function TrackerApp({
         if (entry.position !== idx) changed.push({ id: entry.id, position: idx });
       });
       if (changed.length === 0) return;
+      void hapticTick();
 
       // Optimistic local update so the drag feels instant.
       const nextPosition = new Map(changed.map((c) => [c.id, c.position]));
@@ -1698,6 +1701,7 @@ function TrackerApp({
       }
       setEntries((prev) => prev.filter((e) => e.id !== id));
       setSyncError(null);
+      void hapticWarning();
       toast.success(message);
     },
     [userId, reportDatabaseError],
