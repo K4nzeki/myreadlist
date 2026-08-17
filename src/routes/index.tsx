@@ -1280,6 +1280,13 @@ function TrackerApp({
   const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
   const changeMainTab = (next: MainTab) => {
     setSlideDir(MAIN_TABS.indexOf(next) > MAIN_TABS.indexOf(mainTab) ? "forward" : "backward");
+    // The To Read pile reads as a queue — default to oldest-added-first so
+    // it's "what to read next", not buried under whatever was just added.
+    // The main library keeps its own newest-first default untouched.
+    if (next === "toread") {
+      setSortKey("created_at");
+      setSortDir("asc");
+    }
     setMainTab(next);
   };
 
@@ -1884,7 +1891,7 @@ function TrackerApp({
   // for the "blank placeholder" quick-add (no title passed) and for the
   // "can't find it on AniList, just add it" manual path in SearchDialog
   // (title passed in from whatever the user typed in the search box).
-  const addBlank = async (rawTitle = "") => {
+  const addBlank = async (rawTitle = "", initialStatus: EntryStatus = "Reading") => {
     const taken = new Set(entries.map((e) => e.title.trim().toLowerCase()));
     let title = rawTitle.trim();
     if (title) {
@@ -1897,7 +1904,7 @@ function TrackerApp({
       let n = 2;
       while (taken.has(title.toLowerCase())) title = `New title ${n++}`;
     }
-    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: "Reading", reread: 0, position: nextTopPosition(entries) };
+    const row = { user_id: userId, title, type: "Manga", chapter: 0, status: initialStatus, reread: 0, position: nextTopPosition(entries) };
     const { data, error } = await supabase
       .from("entries")
       .insert(row)
@@ -2379,7 +2386,11 @@ function TrackerApp({
       )}
 
       {searchDialogOpen && (
-        <SearchDialog onAdd={addFromSearch} onAddManual={addBlank} onClose={() => setSearchDialogOpen(false)} />
+        <SearchDialog
+          onAdd={(result) => addFromSearch(result, mainTab === "toread" ? "To Read" : "Reading")}
+          onAddManual={(title) => addBlank(title, mainTab === "toread" ? "To Read" : "Reading")}
+          onClose={() => setSearchDialogOpen(false)}
+        />
       )}
 
 
