@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import {
   AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
-  ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Lock, Loader2, Mail, Menu,
+  ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Link2, Lock, Loader2, Mail, Menu,
   Moon, MoreVertical, Pencil, RefreshCw, Search, Share2, Sparkles, Star, Sun, User, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +12,7 @@ import { searchMAL, searchKitsu, searchAllTrackers } from "@/integrations/tracke
 import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
-import { hapticSuccess, hapticTick, hapticWarning, shareLink } from "@/lib/native";
+import { hapticSuccess, hapticTick, hapticWarning, openExternal, shareLink } from "@/lib/native";
 import {
   TYPES,
   STATUSES,
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/")({
 
 // Every entries query below selects this exact column set — kept as one
 // constant so the row shape always matches the Entry type above.
-const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, position";
+const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, read_on_url, position";
 
 // Status options for the "My List" tab's status filter — To Read is
 // excluded since it now lives on its own tab and would just filter the
@@ -2584,17 +2584,33 @@ function TrackerApp({
                 <li key={e.id} className={`rounded-2xl border-y border-r border-border/70 bg-card px-3 py-3 ${statusRowBorder(e.status)}`}>
                   <div className="flex items-stretch gap-3">
                     {e.cover_url ? (
-                      <img
-                        src={e.cover_url}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        width={96}
-                        height={144}
-                        className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                        disabled={!e.read_on_url}
+                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                        title={e.read_on_url ? "Open where you read it" : undefined}
+                        className="shrink-0 block rounded-md appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
+                      >
+                        <img
+                          src={e.cover_url}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          width={96}
+                          height={144}
+                          className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
+                        />
+                      </button>
                     ) : (
-                      <div className="w-20 sm:w-24 shrink-0 rounded-md bg-muted" />
+                      <button
+                        type="button"
+                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                        disabled={!e.read_on_url}
+                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                        title={e.read_on_url ? "Open where you read it" : undefined}
+                        className="w-20 sm:w-24 shrink-0 rounded-md bg-muted appearance-none border-0 p-0 m-0 disabled:cursor-default"
+                      />
                     )}
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
@@ -2727,6 +2743,22 @@ function TrackerApp({
                             </option>
                           ))}
                         </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <input
+                          type="url"
+                          inputMode="url"
+                          key={`m-${e.id}-readon-${e.read_on_url ?? ""}`}
+                          defaultValue={e.read_on_url ?? ""}
+                          placeholder="Read on… paste a MangaDex/Comick/etc. link"
+                          aria-label={`Reading source link for ${e.title}`}
+                          onBlur={(ev) => {
+                            const url = ev.target.value.trim();
+                            if (url !== (e.read_on_url ?? "")) void update(e.id, { read_on_url: url || null });
+                          }}
+                          className="min-w-0 flex-1 h-9 rounded-md bg-input px-2 text-xs outline-none placeholder:text-muted-foreground/60"
+                        />
                       </div>
                       {mainTab === "toread" && e.total_chapters != null && (
                         <div className="text-xs text-muted-foreground px-0.5">
@@ -2874,19 +2906,35 @@ function TrackerApp({
                     </td>
                     <td className="py-1.5 pl-1">
                       {e.cover_url ? (
-                        <img
-                          src={e.cover_url}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          width={64}
-                          height={96}
-                          className="h-24 w-16 rounded-lg object-cover bg-muted shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                          disabled={!e.read_on_url}
+                          aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                          title={e.read_on_url ? "Open where you read it" : undefined}
+                          className="block appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
+                        >
+                          <img
+                            src={e.cover_url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            width={64}
+                            height={96}
+                            className="h-24 w-16 rounded-lg object-cover bg-muted shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
+                          />
+                        </button>
                       ) : (
-                        <div className="h-24 w-16 rounded-lg bg-muted grid place-items-center">
+                        <button
+                          type="button"
+                          onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                          disabled={!e.read_on_url}
+                          aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                          title={e.read_on_url ? "Open where you read it" : undefined}
+                          className="h-24 w-16 rounded-lg bg-muted grid place-items-center appearance-none border-0 p-0 m-0 disabled:cursor-default"
+                        >
                           <BookOpen className="h-5 w-5 text-muted-foreground/40" />
-                        </div>
+                        </button>
                       )}
                     </td>
                     <td className="px-4 py-1.5">
@@ -2934,6 +2982,50 @@ function TrackerApp({
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
+                              <div className="relative shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => setCardMenuOpenId((cur) => (cur === e.id ? null : e.id))}
+                                  aria-label={`Set reading-source link for ${e.title}`}
+                                  aria-expanded={cardMenuOpenId === e.id}
+                                  title={e.read_on_url ? "Read on: linked" : "Set where you read this"}
+                                  className={`h-6 w-6 grid place-items-center rounded transition hover:bg-secondary ${
+                                    e.read_on_url
+                                      ? "text-primary opacity-100"
+                                      : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground"
+                                  }`}
+                                >
+                                  <Link2 className="h-3.5 w-3.5" />
+                                </button>
+                                {cardMenuOpenId === e.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setCardMenuOpenId(null)} />
+                                    <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border border-border bg-card shadow-lg p-2">
+                                      <label className="block text-[11px] text-muted-foreground mb-1">
+                                        Read on (MangaDex, Comick, etc.)
+                                      </label>
+                                      <input
+                                        type="url"
+                                        inputMode="url"
+                                        autoFocus
+                                        key={`d-${e.id}-readon-${e.read_on_url ?? ""}`}
+                                        defaultValue={e.read_on_url ?? ""}
+                                        placeholder="https://…"
+                                        aria-label={`Reading source link for ${e.title}`}
+                                        onKeyDown={(ev) => {
+                                          if (ev.key === "Enter") ev.currentTarget.blur();
+                                        }}
+                                        onBlur={(ev) => {
+                                          const url = ev.target.value.trim();
+                                          if (url !== (e.read_on_url ?? "")) void update(e.id, { read_on_url: url || null });
+                                          setCardMenuOpenId(null);
+                                        }}
+                                        className="w-full h-8 rounded-md bg-input px-2 text-xs outline-none"
+                                      />
+                                    </div>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           )}
                           {mainTab !== "toread" && (
