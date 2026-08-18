@@ -1234,6 +1234,11 @@ function TrackerApp({
   // Which mobile card's edit/reorder/delete overflow menu is open, if any —
   // only one at a time, same pattern as editingTitleId.
   const [cardMenuOpenId, setCardMenuOpenId] = useState<string | number | null>(null);
+  // Within the mobile overflow menu, whether it's showing the normal
+  // action list or has been switched to the "Read on" URL editor for this
+  // entry (tapping the "Read on" item swaps the content in place instead
+  // of closing the menu and opening a second one).
+  const [readOnEditId, setReadOnEditId] = useState<string | number | null>(null);
   const copyTitle = async (title: string) => {
     try {
       await navigator.clipboard.writeText(title);
@@ -2663,7 +2668,39 @@ function TrackerApp({
                             <>
                               {/* Transparent full-screen catcher so tapping anywhere outside
                                   closes the menu, same pattern as the mobile actions sheet. */}
-                              <div className="fixed inset-0 z-40" onClick={() => setCardMenuOpenId(null)} />
+                              <div
+                                className="fixed inset-0 z-40"
+                                onClick={() => {
+                                  setCardMenuOpenId(null);
+                                  setReadOnEditId(null);
+                                }}
+                              />
+                              {readOnEditId === e.id ? (
+                                <div className="absolute right-0 top-full mt-1 z-50 w-64 rounded-lg border border-border bg-card shadow-lg p-2">
+                                  <label className="block text-[11px] text-muted-foreground mb-1">
+                                    Read on (MangaDex, Comick, etc.)
+                                  </label>
+                                  <input
+                                    type="url"
+                                    inputMode="url"
+                                    autoFocus
+                                    key={`m-${e.id}-readon-${e.read_on_url ?? ""}`}
+                                    defaultValue={e.read_on_url ?? ""}
+                                    placeholder="https://…"
+                                    aria-label={`Reading source link for ${e.title}`}
+                                    onKeyDown={(ev) => {
+                                      if (ev.key === "Enter") ev.currentTarget.blur();
+                                    }}
+                                    onBlur={(ev) => {
+                                      const url = ev.target.value.trim();
+                                      if (url !== (e.read_on_url ?? "")) void update(e.id, { read_on_url: url || null });
+                                      setCardMenuOpenId(null);
+                                      setReadOnEditId(null);
+                                    }}
+                                    className="w-full h-9 rounded-md bg-input px-2 text-xs outline-none"
+                                  />
+                                </div>
+                              ) : (
                               <div className="absolute right-0 top-full mt-1 z-50 w-40 rounded-lg border border-border bg-card shadow-lg overflow-hidden py-1">
                                 <button
                                   type="button"
@@ -2675,6 +2712,14 @@ function TrackerApp({
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
                                   Edit title
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setReadOnEditId(e.id)}
+                                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-secondary"
+                                >
+                                  <Link2 className={`h-3.5 w-3.5 ${e.read_on_url ? "text-primary" : ""}`} />
+                                  Read on
                                 </button>
                                 <button
                                   type="button"
@@ -2714,6 +2759,7 @@ function TrackerApp({
                                   Delete
                                 </button>
                               </div>
+                              )}
                             </>
                           )}
                         </div>
@@ -2743,22 +2789,6 @@ function TrackerApp({
                             </option>
                           ))}
                         </select>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <input
-                          type="url"
-                          inputMode="url"
-                          key={`m-${e.id}-readon-${e.read_on_url ?? ""}`}
-                          defaultValue={e.read_on_url ?? ""}
-                          placeholder="Read on… paste a MangaDex/Comick/etc. link"
-                          aria-label={`Reading source link for ${e.title}`}
-                          onBlur={(ev) => {
-                            const url = ev.target.value.trim();
-                            if (url !== (e.read_on_url ?? "")) void update(e.id, { read_on_url: url || null });
-                          }}
-                          className="min-w-0 flex-1 h-9 rounded-md bg-input px-2 text-xs outline-none placeholder:text-muted-foreground/60"
-                        />
                       </div>
                       {mainTab === "toread" && e.total_chapters != null && (
                         <div className="text-xs text-muted-foreground px-0.5">
