@@ -1280,12 +1280,18 @@ function TrackerApp({
   const [slideDir, setSlideDir] = useState<"forward" | "backward">("forward");
   const changeMainTab = (next: MainTab) => {
     setSlideDir(MAIN_TABS.indexOf(next) > MAIN_TABS.indexOf(mainTab) ? "forward" : "backward");
-    // The To Read pile reads as a queue — default to oldest-added-first so
-    // it's "what to read next", not buried under whatever was just added.
-    // The main library keeps its own newest-first default untouched.
+    // Each tab has its own default sort — My List reads newest-added-first
+    // (what's active/recent), the To Read pile reads oldest-added-first
+    // (a queue: what to read next). Since sortKey/sortDir are shared state
+    // across tabs, both directions need to reset explicitly here, or
+    // switching to To Read (which sets asc) would leave My List stuck on
+    // asc too the next time you switch back to it.
     if (next === "toread") {
       setSortKey("created_at");
       setSortDir("asc");
+    } else if (next === "library") {
+      setSortKey("created_at");
+      setSortDir("desc");
     }
     setMainTab(next);
   };
