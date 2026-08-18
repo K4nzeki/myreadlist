@@ -22,6 +22,11 @@ export type Entry = {
   cover_url?: string | null;
   author?: string | null;
   total_chapters?: number | null;
+  // Where the reader actually reads this — a MangaDex/Comick/etc. title
+  // page URL, set by the reader themselves. Distinct from cover_url/author
+  // (AniList/MAL/Kitsu tracking metadata) — this is about *reading* the
+  // thing, not tracking it. See routes/index.tsx's cover-tap handler.
+  read_on_url?: string | null;
   position: number;
 };
 
