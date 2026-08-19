@@ -45,7 +45,7 @@ export const Route = createFileRoute("/")({
 
 // Every entries query below selects this exact column set — kept as one
 // constant so the row shape always matches the Entry type above.
-const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, read_on_url, position";
+const ENTRY_COLUMNS = "id, title, type, chapter, status, reread, created_at, cover_url, author, total_chapters, read_on_url, last_read_at, position";
 
 // Status options for the "My List" tab's status filter — To Read is
 // excluded since it now lives on its own tab and would just filter the
@@ -1496,8 +1496,8 @@ function TrackerApp({
     if (!sortKey) return [...list].sort((a, b) => a.position - b.position);
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
-      const av = a[sortKey] ?? "";
-      const bv = b[sortKey] ?? "";
+      const av = sortKey === "created_at" ? (a.last_read_at ?? a.created_at ?? "") : (a[sortKey] ?? "");
+      const bv = sortKey === "created_at" ? (b.last_read_at ?? b.created_at ?? "") : (b[sortKey] ?? "");
       if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
       if (sortKey === "created_at") return String(av) < String(bv) ? -dir : String(av) > String(bv) ? dir : 0;
       return String(av).localeCompare(String(bv), undefined, { sensitivity: "base" }) * dir;
@@ -1581,9 +1581,16 @@ function TrackerApp({
   const update = useCallback(
     async (id: string, patch: Partial<Entry>) => {
       const before = entriesRef.current.find((entry) => entry.id === id);
+      // Chapter bumps count as "activity" for sorting purposes — stamp
+      // last_read_at so this entry surfaces near the top of the default
+      // "Newly Added" sort alongside actually-new additions, not just
+      // whatever's oldest-untouched. Other edits (renaming, setting a
+      // "Read on" link, etc.) intentionally don't touch this.
+      const fullPatch: Partial<Entry> =
+        typeof patch.chapter === "number" ? { ...patch, last_read_at: new Date().toISOString() } : patch;
       const { data, error } = await supabase
         .from("entries")
-        .update(patch)
+        .update(fullPatch)
         .eq("id", id)
         .eq("user_id", userId)
         .select(ENTRY_COLUMNS)
@@ -2440,8 +2447,21 @@ function TrackerApp({
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder={mainTab === "toread" ? "Filter your To Read pile…" : "Search"}
-                className="w-full h-11 sm:h-9 pl-10 pr-3 rounded-2xl sm:rounded-full bg-secondary/70 text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all"
+                className={`w-full h-11 sm:h-9 pl-10 rounded-2xl sm:rounded-full bg-secondary/70 text-foreground placeholder:text-muted-foreground text-sm outline-none border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-ring/40 transition-all ${
+                  filter ? "pr-9" : "pr-3"
+                }`}
               />
+              {filter && (
+                <button
+                  type="button"
+                  onClick={() => setFilter("")}
+                  aria-label="Clear search"
+                  title="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 grid place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Mobile: sort/type/status as an evenly-sized row.
