@@ -27,6 +27,10 @@ export type Entry = {
   // (AniList/MAL/Kitsu tracking metadata) — this is about *reading* the
   // thing, not tracking it. See routes/index.tsx's cover-tap handler.
   read_on_url?: string | null;
+  // Set whenever a chapter bump happens (see update() in routes/index.tsx)
+  // — not on every edit. Used to bubble actively-read titles up in the
+  // default sort, separate from created_at (when it was first added).
+  last_read_at?: string | null;
   position: number;
 };
 
