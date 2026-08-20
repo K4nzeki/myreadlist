@@ -86,7 +86,9 @@ export type Database = {
           cover_url: string | null
           created_at: string
           id: string
+          last_read_at: string | null
           position: number
+          read_on_url: string | null
           reread: number
           status: string
           title: string
@@ -101,7 +103,9 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           id?: string
+          last_read_at?: string | null
           position?: number
+          read_on_url?: string | null
           reread?: number
           status: string
           title: string
@@ -116,7 +120,9 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           id?: string
+          last_read_at?: string | null
           position?: number
+          read_on_url?: string | null
           reread?: number
           status?: string
           title?: string
