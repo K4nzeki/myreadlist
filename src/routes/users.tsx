@@ -32,15 +32,22 @@ function UserList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("profiles")
-      .select("id, username")
-      .not("username", "is", null)
-      .order("username", { ascending: true })
-      .then(({ data }) => {
-        setProfiles(data ?? []);
-        setLoading(false);
-      });
+    (async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const selfId = sessionData.session?.user.id;
+
+      let q = supabase
+        .from("profiles")
+        .select("id, username")
+        .not("username", "is", null)
+        .order("username", { ascending: true });
+
+      if (selfId) q = q.neq("id", selfId);
+
+      const { data } = await q;
+      setProfiles(data ?? []);
+      setLoading(false);
+    })();
   }, []);
 
   return (
@@ -67,7 +74,7 @@ function UserList() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Browse users</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {loading ? "Loading…" : `${profiles.length} public ${profiles.length === 1 ? "list" : "lists"} to explore`}
+              {loading ? "Loading…" : `${profiles.length} other public ${profiles.length === 1 ? "list" : "lists"} to explore`}
             </p>
           </div>
         </div>
@@ -88,9 +95,9 @@ function UserList() {
                 <Layers className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-sm font-medium">No public users yet</p>
+                <p className="text-sm font-medium">No other public users yet</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Once someone sets a username, their list will show up here.
+                  Once someone else sets a username and makes their list public, it'll show up here.
                 </p>
               </div>
             </div>
