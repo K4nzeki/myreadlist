@@ -62,6 +62,7 @@ function PublicList() {
   const { userId } = Route.useParams();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [username, setUsername] = useState("");
+  const [profileFound, setProfileFound] = useState(true);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -96,7 +97,16 @@ function PublicList() {
         .select("username")
         .eq("id", userId)
         .maybeSingle();
-      setUsername(profile?.username ?? "Unknown user");
+      // RLS only returns a row here if the profile is public (username set
+      // and list_visible = true) — so no row means the list is either
+      // missing or has been hidden by its owner.
+      if (!profile) {
+        setProfileFound(false);
+        setUsername("Unknown user");
+        setLoading(false);
+        return;
+      }
+      setUsername(profile.username ?? "Unknown user");
 
       const counts = await Promise.all(
         STATUSES.map((s) =>
@@ -141,7 +151,7 @@ function PublicList() {
 
   // Fetch just the first page whenever filters/sort change; a fresh page replaces the list.
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !profileFound) return;
     const myId = ++requestId.current;
     setLoading(true);
     (async () => {
@@ -232,20 +242,42 @@ function PublicList() {
             Back to users
           </Link>
 
-          <a
-            href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
-              `Reporting a Panels user: ${username}`,
-            )}&body=${encodeURIComponent(
-              `Reporting the public list at ${typeof window !== "undefined" ? window.location.href : `/u/${userId}`}\n\nReason:\n`,
-            )}`}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
-            aria-label={`Report ${username}'s list`}
-          >
-            <Flag size={13} />
-            Report
-          </a>
+          {profileFound && (
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                `Reporting a Panels user: ${username}`,
+              )}&body=${encodeURIComponent(
+                `Reporting the public list at ${typeof window !== "undefined" ? window.location.href : `/u/${userId}`}\n\nReason:\n`,
+              )}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+              aria-label={`Report ${username}'s list`}
+            >
+              <Flag size={13} />
+              Report
+            </a>
+          )}
         </div>
 
+        {!loading && !profileFound ? (
+          <div className="mt-10 flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border py-16 text-center">
+            <div className="h-12 w-12 rounded-full bg-secondary grid place-items-center">
+              <User className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">This list isn't available</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                It may not exist, or its owner has hidden it from public view.
+              </p>
+            </div>
+            <Link
+              to="/users"
+              className="mt-2 text-xs font-medium text-primary hover:underline"
+            >
+              Browse other users
+            </Link>
+          </div>
+        ) : (
+        <>
         <div className="mt-4 flex items-center gap-3.5">
           <div className="h-12 w-12 shrink-0 rounded-full bg-primary/15 border border-primary/30 grid place-items-center text-primary font-semibold">
             {initials(username)}
@@ -438,6 +470,8 @@ function PublicList() {
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );
