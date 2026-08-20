@@ -13,6 +13,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
 import { hapticSuccess, hapticTick, hapticWarning, openExternal, shareLink } from "@/lib/native";
+import { Switch } from "@/components/ui/switch";
 import {
   TYPES,
   STATUSES,
@@ -3817,6 +3818,7 @@ function ProfileDialog({
   onClose: () => void;
 }) {
   const [username, setUsername] = useState("");
+  const [listVisible, setListVisible] = useState(true);
   const [newEmail, setNewEmail] = useState(email);
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -3833,11 +3835,12 @@ function ProfileDialog({
     (async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, list_visible")
         .eq("id", userId)
         .maybeSingle();
       if (!active) return;
       setUsername(data?.username ?? "");
+      setListVisible(data?.list_visible ?? true);
       setLoading(false);
     })();
     return () => {
@@ -3855,7 +3858,7 @@ function ProfileDialog({
       if (uname.length > 40) throw new Error("Username must be 40 characters or fewer.");
       const { error: pErr } = await supabase
         .from("profiles")
-        .upsert({ id: userId, username: uname || null }, { onConflict: "id" });
+        .upsert({ id: userId, username: uname || null, list_visible: listVisible }, { onConflict: "id" });
       if (pErr)
         throw new Error(
           pErr.code === "23505" ? "That username is already taken." : pErr.message,
@@ -3941,8 +3944,33 @@ function ProfileDialog({
           </div>
         </div>
 
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/80 bg-secondary/30 px-3.5 py-3">
+          <div className="flex items-start gap-2.5 min-w-0">
+            {listVisible ? (
+              <Eye className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            ) : (
+              <EyeOff className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+            )}
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Show my list publicly</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {listVisible
+                  ? "Anyone with your link can view your reading list."
+                  : "Your list is hidden — only you can see it."}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={listVisible}
+            onCheckedChange={setListVisible}
+            disabled={loading}
+            aria-label="Show my list publicly"
+          />
+        </div>
+
         <button
           type="button"
+          disabled={!listVisible}
           onClick={async () => {
             const url = `${window.location.origin}/u/${userId}`;
             const result = await shareLink({
@@ -3956,11 +3984,16 @@ function ProfileDialog({
               toast.success("Link copied");
             }
           }}
-          className="h-10 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors flex items-center justify-center gap-2"
+          className="h-10 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Share2 className="h-4 w-4" />
           Share your list
         </button>
+        {!listVisible && (
+          <p className="-mt-2 text-[11px] text-muted-foreground">
+            Turn on visibility above to share a link to your list.
+          </p>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-muted-foreground">Email</label>
