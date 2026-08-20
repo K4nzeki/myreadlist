@@ -80,8 +80,9 @@ function TermsOfService() {
           <section>
             <h2 className="text-base font-semibold mb-2">Public content & reporting abuse</h2>
             <p>
-              If you set a username, it appears publicly on your shared list page and in the
-              browse/leaderboard views. We have zero tolerance for usernames or list content used
+              If you set a username and keep your list visible, it appears publicly on your shared
+              list page and in the browse view. You can hide your list from your profile at any
+              time. We have zero tolerance for usernames or list content used
               to impersonate, harass, or abuse others. If you see a username or public list that
               violates these terms, report it to{" "}
               <a href={`mailto:${CONTACT_EMAIL}`} className="text-primary underline underline-offset-2">
