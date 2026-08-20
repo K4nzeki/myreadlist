@@ -131,18 +131,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          list_visible: boolean
           updated_at: string
           username: string | null
         }
         Insert: {
           created_at?: string
           id: string
+          list_visible?: boolean
           updated_at?: string
           username?: string | null
         }
         Update: {
           created_at?: string
           id?: string
+          list_visible?: boolean
           updated_at?: string
           username?: string | null
         }
@@ -150,15 +153,7 @@ export type Database = {
       }
     }
     Views: {
-      leaderboard_stats: {
-        Row: {
-          user_id: string
-          username: string | null
-          total_chapters: number
-          total_series: number
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       delete_own_account: {
