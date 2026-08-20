@@ -75,10 +75,12 @@ function PrivacyPolicy() {
             <p>
               Your account and reading-list data are used solely to run the app: signing you in,
               syncing your list across your devices, and showing your stats. If you set a
-              username, your reading list becomes visible on a public, shareable page at
+              username and keep your list visible, your reading list becomes visible on a public,
+              shareable page at
               <span className="font-mono text-xs mx-1">/u/your-id</span>
               so others can see what you're reading — this is opt-in in the sense that it only
-              shows what you've added, and you can remove entries at any time.
+              shows what you've added, and you can hide your list at any time from Profile → Show
+              my list publicly, or remove entries at any time.
             </p>
           </section>
 
