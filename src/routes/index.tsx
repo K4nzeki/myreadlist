@@ -1371,11 +1371,28 @@ function TrackerApp({
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
-      .from("entries")
-      .select(ENTRY_COLUMNS)
-      .eq("user_id", userId)
-      .order("position", { ascending: true });
+    // PGRST303 ("JWT issued at future") is PostgREST rejecting an otherwise
+    // valid token because of clock skew between Supabase's Auth (GoTrue) and
+    // PostgREST/DB nodes - not anything wrong with the user's session. It's
+    // transient (the drift is usually sub-second and self-corrects), so a
+    // couple of short, silent retries clear it up without ever bothering the
+    // user with a scary error toast for something they can't fix.
+    const CLOCK_SKEW_RETRY_DELAYS_MS = [500, 1500];
+    let data: unknown[] | null = null;
+    let error: { code?: string; message: string } | null = null;
+    for (let attempt = 0; attempt <= CLOCK_SKEW_RETRY_DELAYS_MS.length; attempt++) {
+      const result = await supabase
+        .from("entries")
+        .select(ENTRY_COLUMNS)
+        .eq("user_id", userId)
+        .order("position", { ascending: true });
+      data = result.data;
+      error = result.error;
+      if (!error || error.code !== "PGRST303") break;
+      const delay = CLOCK_SKEW_RETRY_DELAYS_MS[attempt];
+      if (delay === undefined) break;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
     if (error) {
       reportDatabaseError("Loading your list", error);
     } else if (data) {
