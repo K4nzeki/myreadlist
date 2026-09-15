@@ -1642,14 +1642,14 @@ function TrackerApp({
         // should be visible in the console instead of vanishing silently.
         if (logError) console.error("[Panels database] Logging completion failed:", logError);
       }
-      // Log a chapter change (up or down) so the "chapters read" stat
-      // stays accurate — the +1 button, typing a higher number, or
-      // correcting a typo/over-count back down, for any title. A decrease
-      // logs a negative delta, so correcting a chapter you bumped by
-      // mistake nets back out of the day's total instead of leaving a
-      // stats total that's now too high. Logged against the reader's
-      // local calendar day, same reasoning as completion_log's local
-      // month.
+      // Log chapter progress so the "chapters read" stat only ever goes
+      // up. Going from a lower chapter to a higher one logs the chapters
+      // just read. Dropping back to a lower chapter means the reader
+      // restarted the title (a reread): those early chapters were read
+      // again on the new pass, so the new chapter number itself is logged
+      // as chapters read — never a negative number. Logged against the
+      // reader's local calendar day, same reasoning as completion_log's
+      // local month.
       // A reread counts as reading the title again: log one completion per
       // extra reread for "titles read this month", plus the chapters that
       // pass covered so the chapters-read chart reflects the reread too.
