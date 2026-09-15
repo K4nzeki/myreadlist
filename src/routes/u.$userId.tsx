@@ -405,18 +405,12 @@ function PublicList() {
                           title={`Open "${e.title}" on AniList`}
                           className="block rounded-md transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                         >
-                          {e.cover_url ? (
-                            <img
-                              src={e.cover_url}
-                              alt={`${e.title} cover`}
-                              loading="lazy"
-                              className="h-14 w-10 rounded-md object-cover shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
-                            />
-                          ) : (
-                            <div className="h-14 w-10 rounded-md bg-muted grid place-items-center">
-                              <BookOpen className="h-4 w-4 text-muted-foreground/40" />
-                            </div>
-                          )}
+                          <CoverImage
+                            src={e.cover_url}
+                            alt={`${e.title} cover`}
+                            className="h-14 w-10 rounded-md shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
+                            iconClassName="h-4 w-4"
+                          />
                         </a>
                       </td>
                       <td className="px-3 py-2 font-medium text-foreground max-w-[22rem]">
