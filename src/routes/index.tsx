@@ -2626,35 +2626,20 @@ function TrackerApp({
               {visible.map((e) => (
                 <li key={e.id} className={`rounded-2xl border-y border-r border-border/70 bg-card px-3 py-3 ${statusRowBorder(e.status)}`}>
                   <div className="flex items-stretch gap-3">
-                    {e.cover_url ? (
-                      <button
-                        type="button"
-                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                        disabled={!e.read_on_url}
-                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                        title={e.read_on_url ? "Open where you read it" : undefined}
-                        className="shrink-0 block rounded-md appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
-                      >
-                        <img
-                          src={e.cover_url}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          width={96}
-                          height={144}
-                          className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
-                        />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                        disabled={!e.read_on_url}
-                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                        title={e.read_on_url ? "Open where you read it" : undefined}
-                        className="w-20 sm:w-24 shrink-0 rounded-md bg-muted appearance-none border-0 p-0 m-0 disabled:cursor-default"
+                    <button
+                      type="button"
+                      onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                      disabled={!e.read_on_url}
+                      aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                      title={e.read_on_url ? "Open where you read it" : undefined}
+                      className="shrink-0 block rounded-md appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
+                    >
+                      <CoverImage
+                        src={e.cover_url}
+                        className="w-20 sm:w-24 aspect-[2/3] shrink-0 rounded-md"
+                        iconClassName="h-5 w-5"
                       />
-                    )}
+                    </button>
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
                         {editingTitleId === e.id ? (
