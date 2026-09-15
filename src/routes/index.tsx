@@ -1678,16 +1678,21 @@ function TrackerApp({
           if (chapError) console.error("[Panels database] Logging reread chapters failed:", chapError);
         }
       }
-      // A reread usually resets the chapter back to the start — that's not
-      // "unreading" those chapters, so skip the negative delta in that case.
+      // Chapter increases log the difference; a reset to a lower chapter
+      // (reread restart) logs the new chapter count as progress on the new
+      // pass. Either way the logged delta is never negative. When the
+      // reread counter itself was just bumped, its chapter credit above
+      // already covers the pass, so skip double-logging the reset.
       if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter && !(rereadDelta > 0 && patch.chapter < before.chapter)) {
         if (patch.chapter > before.chapter) void hapticTick();
-        const { error: logError } = await supabase.from("chapter_log").insert({
-          user_id: userId,
-          entry_id: id,
-          day: localDayKey(),
-          delta: patch.chapter - before.chapter,
-        });
+        const delta = patch.chapter > before.chapter ? patch.chapter - before.chapter : patch.chapter;
+        if (delta > 0) {
+          const { error: logError } = await supabase.from("chapter_log").insert({
+            user_id: userId,
+            entry_id: id,
+            day: localDayKey(),
+            delta,
+          });
         if (logError) console.error("[Panels database] Logging chapters read failed:", logError);
       }
       return true;
