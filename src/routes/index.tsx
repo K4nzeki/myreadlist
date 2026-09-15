@@ -13,6 +13,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
 import { hapticSuccess, hapticTick, hapticWarning, openExternal, shareLink } from "@/lib/native";
+import CoverImage from "@/components/CoverImage";
 import { Switch } from "@/components/ui/switch";
 import {
   TYPES,
