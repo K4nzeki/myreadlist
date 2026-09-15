@@ -1693,7 +1693,8 @@ function TrackerApp({
             day: localDayKey(),
             delta,
           });
-        if (logError) console.error("[Panels database] Logging chapters read failed:", logError);
+          if (logError) console.error("[Panels database] Logging chapters read failed:", logError);
+        }
       }
       return true;
     },
