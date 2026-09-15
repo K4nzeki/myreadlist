@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Flag, Loader2, Search, User, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { openExternal } from "@/lib/native";
+import CoverImage from "@/components/CoverImage";
 import { SUPPORT_EMAIL } from "./shared";
 
 export const Route = createFileRoute("/u/$userId")({
