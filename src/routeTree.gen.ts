@@ -43,39 +43,39 @@ const UUserIdRoute = UUserIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/users': typeof UsersRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/users': typeof UsersRoute
   '/u/$userId': typeof UUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/users': typeof UsersRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/users': typeof UsersRoute
   '/u/$userId': typeof UUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/users': typeof UsersRoute
   '/privacy': typeof PrivacyRoute
   '/terms': typeof TermsRoute
+  '/users': typeof UsersRoute
   '/u/$userId': typeof UUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/users' | '/privacy' | '/terms' | '/u/$userId'
+  fullPaths: '/' | '/privacy' | '/terms' | '/users' | '/u/$userId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/users' | '/privacy' | '/terms' | '/u/$userId'
-  id: '__root__' | '/' | '/users' | '/privacy' | '/terms' | '/u/$userId'
+  to: '/' | '/privacy' | '/terms' | '/users' | '/u/$userId'
+  id: '__root__' | '/' | '/privacy' | '/terms' | '/users' | '/u/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  UsersRoute: typeof UsersRoute
   PrivacyRoute: typeof PrivacyRoute
   TermsRoute: typeof TermsRoute
+  UsersRoute: typeof UsersRoute
   UUserIdRoute: typeof UUserIdRoute
 }
 
@@ -88,11 +88,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -102,11 +102,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/u/$userId': {
@@ -121,11 +121,21 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  UsersRoute: UsersRoute,
   PrivacyRoute: PrivacyRoute,
   TermsRoute: TermsRoute,
+  UsersRoute: UsersRoute,
   UUserIdRoute: UUserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

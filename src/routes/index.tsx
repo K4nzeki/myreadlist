@@ -13,6 +13,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { loadCachedEntries, saveCachedEntries } from "@/lib/offline-entries-cache";
 import { rememberSession, forgetRememberedSession, loadRememberedSession } from "@/lib/offline-auth-grace";
 import { hapticSuccess, hapticTick, hapticWarning, openExternal, shareLink } from "@/lib/native";
+import CoverImage from "@/components/CoverImage";
 import { Switch } from "@/components/ui/switch";
 import {
   TYPES,
@@ -1649,7 +1650,37 @@ function TrackerApp({
       // stats total that's now too high. Logged against the reader's
       // local calendar day, same reasoning as completion_log's local
       // month.
-      if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter) {
+      // A reread counts as reading the title again: log one completion per
+      // extra reread for "titles read this month", plus the chapters that
+      // pass covered so the chapters-read chart reflects the reread too.
+      const rereadDelta =
+        before && typeof patch.reread === "number" ? patch.reread - before.reread : 0;
+      if (before && rereadDelta > 0) {
+        void hapticSuccess();
+        const month = localMonthKey();
+        const rows = Array.from({ length: rereadDelta }, () => ({
+          user_id: userId,
+          entry_id: id,
+          title: (data as Entry).title,
+          month,
+        }));
+        const { error: logError } = await supabase.from("completion_log").insert(rows);
+        if (logError) console.error("[Panels database] Logging reread failed:", logError);
+
+        const chaptersPerPass = Number(before.total_chapters) || Number(before.chapter) || 0;
+        if (chaptersPerPass > 0) {
+          const { error: chapError } = await supabase.from("chapter_log").insert({
+            user_id: userId,
+            entry_id: id,
+            day: localDayKey(),
+            delta: chaptersPerPass * rereadDelta,
+          });
+          if (chapError) console.error("[Panels database] Logging reread chapters failed:", chapError);
+        }
+      }
+      // A reread usually resets the chapter back to the start — that's not
+      // "unreading" those chapters, so skip the negative delta in that case.
+      if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter && !(rereadDelta > 0 && patch.chapter < before.chapter)) {
         if (patch.chapter > before.chapter) void hapticTick();
         const { error: logError } = await supabase.from("chapter_log").insert({
           user_id: userId,
@@ -2626,35 +2657,20 @@ function TrackerApp({
               {visible.map((e) => (
                 <li key={e.id} className={`rounded-2xl border-y border-r border-border/70 bg-card px-3 py-3 ${statusRowBorder(e.status)}`}>
                   <div className="flex items-stretch gap-3">
-                    {e.cover_url ? (
-                      <button
-                        type="button"
-                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                        disabled={!e.read_on_url}
-                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                        title={e.read_on_url ? "Open where you read it" : undefined}
-                        className="shrink-0 block rounded-md appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
-                      >
-                        <img
-                          src={e.cover_url}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          width={96}
-                          height={144}
-                          className="w-20 sm:w-24 shrink-0 rounded-md object-cover bg-muted"
-                        />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                        disabled={!e.read_on_url}
-                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                        title={e.read_on_url ? "Open where you read it" : undefined}
-                        className="w-20 sm:w-24 shrink-0 rounded-md bg-muted appearance-none border-0 p-0 m-0 disabled:cursor-default"
+                    <button
+                      type="button"
+                      onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                      disabled={!e.read_on_url}
+                      aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                      title={e.read_on_url ? "Open where you read it" : undefined}
+                      className="shrink-0 block rounded-md appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
+                    >
+                      <CoverImage
+                        src={e.cover_url}
+                        className="w-20 sm:w-24 aspect-[2/3] shrink-0 rounded-md"
+                        iconClassName="h-5 w-5"
                       />
-                    )}
+                    </button>
                     <div className="min-w-0 flex-1 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
                         {editingTitleId === e.id ? (
@@ -2973,37 +2989,20 @@ function TrackerApp({
                       </button>
                     </td>
                     <td className="py-1.5 pl-1">
-                      {e.cover_url ? (
-                        <button
-                          type="button"
-                          onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                          disabled={!e.read_on_url}
-                          aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                          title={e.read_on_url ? "Open where you read it" : undefined}
-                          className="block appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
-                        >
-                          <img
-                            src={e.cover_url}
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                            width={64}
-                            height={96}
-                            className="h-24 w-16 rounded-lg object-cover bg-muted shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
-                          />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                          disabled={!e.read_on_url}
-                          aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                          title={e.read_on_url ? "Open where you read it" : undefined}
-                          className="h-24 w-16 rounded-lg bg-muted grid place-items-center appearance-none border-0 p-0 m-0 disabled:cursor-default"
-                        >
-                          <BookOpen className="h-5 w-5 text-muted-foreground/40" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                        disabled={!e.read_on_url}
+                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                        title={e.read_on_url ? "Open where you read it" : undefined}
+                        className="block appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
+                      >
+                        <CoverImage
+                          src={e.cover_url}
+                          className="h-24 w-16 rounded-lg shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
+                          iconClassName="h-5 w-5"
+                        />
+                      </button>
                     </td>
                     <td className="px-4 py-1.5">
                       <div className="flex items-center gap-2">
