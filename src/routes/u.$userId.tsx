@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowUp, ArrowDown, BookOpen, Flag, Loader2, Search, User, X } from "lucide-react";
+import { ArrowLeft, ArrowUp, ArrowDown, Flag, Loader2, Search, User, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { openExternal } from "@/lib/native";
 import CoverImage from "@/components/CoverImage";
