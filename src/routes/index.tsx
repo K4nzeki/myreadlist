@@ -2958,37 +2958,20 @@ function TrackerApp({
                       </button>
                     </td>
                     <td className="py-1.5 pl-1">
-                      {e.cover_url ? (
-                        <button
-                          type="button"
-                          onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                          disabled={!e.read_on_url}
-                          aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                          title={e.read_on_url ? "Open where you read it" : undefined}
-                          className="block appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
-                        >
-                          <img
-                            src={e.cover_url}
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                            width={64}
-                            height={96}
-                            className="h-24 w-16 rounded-lg object-cover bg-muted shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
-                          />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
-                          disabled={!e.read_on_url}
-                          aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
-                          title={e.read_on_url ? "Open where you read it" : undefined}
-                          className="h-24 w-16 rounded-lg bg-muted grid place-items-center appearance-none border-0 p-0 m-0 disabled:cursor-default"
-                        >
-                          <BookOpen className="h-5 w-5 text-muted-foreground/40" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => e.read_on_url && void openExternal(e.read_on_url)}
+                        disabled={!e.read_on_url}
+                        aria-label={e.read_on_url ? `Open "${e.title}" where you read it` : undefined}
+                        title={e.read_on_url ? "Open where you read it" : undefined}
+                        className="block appearance-none border-0 bg-transparent p-0 m-0 disabled:cursor-default"
+                      >
+                        <CoverImage
+                          src={e.cover_url}
+                          className="h-24 w-16 rounded-lg shadow-sm ring-1 ring-border/60 group-hover:ring-primary/30 transition-all"
+                          iconClassName="h-5 w-5"
+                        />
+                      </button>
                     </td>
                     <td className="px-4 py-1.5">
                       <div className="flex items-center gap-2">
