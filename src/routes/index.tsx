@@ -1650,7 +1650,37 @@ function TrackerApp({
       // stats total that's now too high. Logged against the reader's
       // local calendar day, same reasoning as completion_log's local
       // month.
-      if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter) {
+      // A reread counts as reading the title again: log one completion per
+      // extra reread for "titles read this month", plus the chapters that
+      // pass covered so the chapters-read chart reflects the reread too.
+      const rereadDelta =
+        before && typeof patch.reread === "number" ? patch.reread - before.reread : 0;
+      if (before && rereadDelta > 0) {
+        void hapticSuccess();
+        const month = localMonthKey();
+        const rows = Array.from({ length: rereadDelta }, () => ({
+          user_id: userId,
+          entry_id: id,
+          title: (data as Entry).title,
+          month,
+        }));
+        const { error: logError } = await supabase.from("completion_log").insert(rows);
+        if (logError) console.error("[Panels database] Logging reread failed:", logError);
+
+        const chaptersPerPass = Number(before.total_chapters) || Number(before.chapter) || 0;
+        if (chaptersPerPass > 0) {
+          const { error: chapError } = await supabase.from("chapter_log").insert({
+            user_id: userId,
+            entry_id: id,
+            day: localDayKey(),
+            delta: chaptersPerPass * rereadDelta,
+          });
+          if (chapError) console.error("[Panels database] Logging reread chapters failed:", chapError);
+        }
+      }
+      // A reread usually resets the chapter back to the start — that's not
+      // "unreading" those chapters, so skip the negative delta in that case.
+      if (before && typeof patch.chapter === "number" && patch.chapter !== before.chapter && !(rereadDelta > 0 && patch.chapter < before.chapter)) {
         if (patch.chapter > before.chapter) void hapticTick();
         const { error: logError } = await supabase.from("chapter_log").insert({
           user_id: userId,
