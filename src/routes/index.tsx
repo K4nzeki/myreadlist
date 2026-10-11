@@ -1651,8 +1651,8 @@ function TrackerApp({
       // reader's local calendar day, same reasoning as completion_log's
       // local month.
       // A reread counts as reading the title again: log one completion per
-      // extra reread for "titles read this month", plus the chapters that
-      // pass covered so the chapters-read chart reflects the reread too.
+      // extra reread for "titles read this month". The chapters-read chart
+      // is NOT affected — bumping the reread counter adds no chapters there.
       const rereadDelta =
         before && typeof patch.reread === "number" ? patch.reread - before.reread : 0;
       if (before && rereadDelta > 0) {
@@ -1666,17 +1666,6 @@ function TrackerApp({
         }));
         const { error: logError } = await supabase.from("completion_log").insert(rows);
         if (logError) console.error("[Panels database] Logging reread failed:", logError);
-
-        const chaptersPerPass = Number(before.total_chapters) || Number(before.chapter) || 0;
-        if (chaptersPerPass > 0) {
-          const { error: chapError } = await supabase.from("chapter_log").insert({
-            user_id: userId,
-            entry_id: id,
-            day: localDayKey(),
-            delta: chaptersPerPass * rereadDelta,
-          });
-          if (chapError) console.error("[Panels database] Logging reread chapters failed:", chapError);
-        }
       }
       // Chapter increases log the difference; a reset to a lower chapter
       // (reread restart) logs the new chapter count as progress on the new
