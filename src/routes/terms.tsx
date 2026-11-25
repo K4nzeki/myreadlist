@@ -8,6 +8,10 @@ export const Route = createFileRoute("/terms")({
     meta: [
       { title: "Terms of Service — Panels" },
       { name: "description", content: "The terms that govern your use of Panels." },
+      { property: "og:title", content: "Terms of Service — Panels" },
+      { property: "og:description", content: "Review the terms for using the Panels reading tracker." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });

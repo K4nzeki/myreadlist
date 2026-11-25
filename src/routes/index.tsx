@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import {
   AlertCircle, ArrowRight, BarChart3, Bookmark, BookOpen, CheckCircle2, ChevronDown, ChevronUp,
-  ClipboardList, Compass, Copy, Eye, EyeOff, GripVertical, Layers, Link2, Lock, Loader2, Mail, Menu,
+  ClipboardList, Compass, Copy, Download, Eye, EyeOff, GripVertical, Layers, Link2, Lock, Loader2, Mail, Menu,
   Moon, MoreVertical, Pencil, RefreshCw, Search, Share2, Sparkles, Star, Sun, User, X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -2085,8 +2085,11 @@ function TrackerApp({
     a.href = url;
     const date = new Date().toISOString().slice(0, 10);
     a.download = `panels-${date}.txt`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    toast.success("Reading list exported");
   };
 
   const loadTxt = (ev: ChangeEvent<HTMLInputElement>) => {
@@ -2284,6 +2287,13 @@ function TrackerApp({
               <span className="hidden sm:inline">Statistics</span>
             </button>
             <button
+              onClick={saveTxt}
+              className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 text-xs font-medium"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+            <button
               onClick={() => void backfillCovers()}
               disabled={backfilling}
               className="h-8 px-3 rounded-lg border border-border hover:bg-secondary hover:border-primary/30 transition-colors inline-flex items-center gap-1.5 disabled:opacity-60 text-xs font-medium"
@@ -2383,6 +2393,16 @@ function TrackerApp({
                 >
                   <BarChart3 className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
                   Statistics
+                </button>
+                <button
+                  onClick={() => {
+                    saveTxt();
+                    setMobileActionsOpen(false);
+                  }}
+                  className="flex items-center gap-3.5 w-full h-auto py-3.5 px-4 text-[15px] font-medium text-neutral-900 active:bg-neutral-100 transition-colors border-b border-neutral-200/80"
+                >
+                  <Download className="h-[18px] w-[18px] text-neutral-500 shrink-0" />
+                  Export list
                 </button>
                 <button
                   onClick={() => {
@@ -3282,7 +3302,7 @@ function TrackerApp({
               onClick={saveTxt}
               className="flex-1 h-9 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:opacity-90"
             >
-              Save .txt
+              Export .txt
             </button>
             <button
               onClick={() => fileRef.current?.click()}

@@ -5,6 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/users")({
   component: UserList,
+  head: () => ({
+    meta: [
+      { title: "Browse Readers — Panels" },
+      { name: "description", content: "Browse readers and explore their shared manga, manhwa, manhua, and comic lists." },
+      { property: "og:title", content: "Browse Readers — Panels" },
+      { property: "og:description", content: "Find public reading lists shared by other Panels readers." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
 });
 
 type Profile = { id: string; username: string | null };

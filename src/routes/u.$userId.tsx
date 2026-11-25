@@ -8,6 +8,16 @@ import { SUPPORT_EMAIL } from "./shared";
 
 export const Route = createFileRoute("/u/$userId")({
   component: PublicList,
+  head: () => ({
+    meta: [
+      { title: "Public Reading List — Panels" },
+      { name: "description", content: "View a reader’s shared manga, manhwa, manhua, and comic list on Panels." },
+      { property: "og:title", content: "Public Reading List — Panels" },
+      { property: "og:description", content: "Explore a reader’s public manga, manhwa, manhua, and comic progress." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
 });
 
 type EntryType = "Manga" | "Manhwa" | "Manhua" | "Comic";

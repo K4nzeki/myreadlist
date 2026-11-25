@@ -8,6 +8,10 @@ export const Route = createFileRoute("/privacy")({
     meta: [
       { title: "Privacy Policy — Panels" },
       { name: "description", content: "How Panels collects, uses, and protects your data." },
+      { property: "og:title", content: "Privacy Policy — Panels" },
+      { property: "og:description", content: "Learn how Panels handles reading-list and account information." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });
